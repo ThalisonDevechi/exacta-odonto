@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* === Exacta Odonto — Identidade Visual ===
+       Vinho #610c27 · Rosé #e3c1b4 · Mauve #ac9cb8
+       Neutros #ddd9ce / #efece9 · Carbon #050505
+    */
+    --background: 30 14% 93%;            /* #efece9 */
+    --foreground: 0 0% 2%;               /* #050505 */
+    --surface: 0 0% 100%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 2%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 2%;
+
+    --primary: 343 79% 21%;              /* #610c27 vinho */
+    --primary-foreground: 30 14% 96%;
+    --primary-hover: 343 79% 16%;
+    --primary-glow: 343 60% 32%;
+
+    --secondary: 42 17% 84%;             /* #ddd9ce */
+    --secondary-foreground: 0 0% 12%;
+
+    --muted: 30 14% 90%;
+    --muted-foreground: 0 0% 35%;
+
+    --accent: 17 49% 80%;                /* #e3c1b4 rosé */
+    --accent-foreground: 343 79% 18%;
+
+    --destructive: 0 65% 42%;
+    --destructive-foreground: 30 14% 96%;
+
+    --success: 152 45% 32%;
+    --success-foreground: 30 14% 96%;
+    --success-bg: 152 30% 90%;
+
+    --warning: 35 75% 45%;
+    --warning-foreground: 35 75% 15%;
+    --warning-bg: 35 60% 90%;
+
+    --info: 343 79% 21%;
+    --info-bg: 17 49% 92%;
+
+    --border: 42 17% 84%;                /* #ddd9ce */
+    --input: 42 17% 84%;
+    --ring: 343 79% 21%;
+
+    --radius: 0.625rem;
+
+    /* Status colors — recalibrados para a nova paleta */
+    --status-scheduled: 35 75% 45%;
+    --status-scheduled-bg: 35 60% 92%;
+    --status-confirmed: 343 79% 21%;
+    --status-confirmed-bg: 17 49% 92%;
+    --status-in-progress: 269 17% 50%;
+    --status-in-progress-bg: 269 17% 92%;
+    --status-completed: 152 45% 32%;
+    --status-completed-bg: 152 30% 92%;
+    --status-cancelled: 0 65% 42%;
+    --status-cancelled-bg: 0 50% 94%;
+    --status-missed: 18 75% 48%;
+    --status-missed-bg: 17 49% 92%;
+    --status-rescheduled: 269 10% 55%;
+    --status-rescheduled-bg: 42 17% 90%;
+
+    /* Shadows — premium soft */
+    --shadow-card: 0 1px 2px 0 hsl(343 30% 15% / 0.04), 0 1px 3px -1px hsl(343 30% 15% / 0.05);
+    --shadow-card-hover: 0 4px 8px -2px hsl(343 30% 15% / 0.08), 0 2px 4px -2px hsl(343 30% 15% / 0.06);
+    --shadow-dropdown: 0 10px 20px -4px hsl(343 30% 15% / 0.1), 0 4px 8px -4px hsl(343 30% 15% / 0.06);
+    --shadow-modal: 0 20px 40px -8px hsl(343 50% 12% / 0.18), 0 8px 16px -8px hsl(343 30% 15% / 0.08);
+    --shadow-elegant: 0 8px 30px -10px hsl(343 79% 21% / 0.25);
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(343 79% 21%), hsl(343 70% 28%));
+    --gradient-accent: linear-gradient(135deg, hsl(17 49% 80%), hsl(269 17% 75%));
+    --gradient-surface: linear-gradient(180deg, hsl(30 14% 96%), hsl(30 14% 93%));
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 343 79% 21%;
+    --sidebar-primary-foreground: 30 14% 96%;
+    --sidebar-accent: 17 49% 92%;
+    --sidebar-accent-foreground: 343 79% 18%;
+    --sidebar-border: 42 17% 88%;
+    --sidebar-ring: 343 79% 21%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-feature-settings: "cv11", "ss01", "ss03";
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-card-hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+  .shadow-dropdown {
+    box-shadow: var(--shadow-dropdown);
+  }
+  .shadow-modal {
+    box-shadow: var(--shadow-modal);
+  }
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  .bg-gradient-primary {
+    background-image: var(--gradient-primary);
+  }
+  .bg-gradient-accent {
+    background-image: var(--gradient-accent);
+  }
+  .bg-gradient-surface {
+    background-image: var(--gradient-surface);
+  }
+}
