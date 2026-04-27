@@ -17,8 +17,14 @@ export function usePatients() {
       .from("patients")
       .select("*")
       .order("name", { ascending: true });
-    if (error) setError(error.message);
-    else setPatients(data ?? []);
+      
+    if (error) {
+      setError(error.message);
+    } else {
+      setError(null); // <-- ADICIONADA ESTA LINHA
+      setPatients(data ?? []);
+    }
+    
     setLoading(false);
   }, []);
 
