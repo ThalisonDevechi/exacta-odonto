@@ -23,8 +23,13 @@ export function useAppointments() {
       .select("*, patients(id,name), dentists(id,name)")
       .order("date", { ascending: true })
       .order("start_time", { ascending: true });
-    if (error) setError(error.message);
-    else setAppointments((data ?? []) as AppointmentWithRelations[]);
+      
+    if (error) {
+      setError(error.message);
+    } else {
+      setError(null); // <-- CORREÇÃO AQUI
+      setAppointments((data ?? []) as AppointmentWithRelations[]);
+    }
     setLoading(false);
   }, []);
 
