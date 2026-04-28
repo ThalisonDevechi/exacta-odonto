@@ -52,7 +52,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm animate-fade-in">
           <div className="mb-8 text-center lg:text-left">
             <div className="lg:hidden mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-elegant">
-              <img src={logoExacta} alt="Exacta Odonto" className="h-12 w-12 object-contain" />
+              <img src={logoExacta} alt="Exacta Odonto" className="h-190 w-190 object-contain" />
             </div>
             <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground">Bem-vindo de volta</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">Acesse sua conta para continuar</p>
