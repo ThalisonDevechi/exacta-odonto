@@ -119,15 +119,58 @@ export default function AgendaPage() {
 
   const openNew = (date?: string, time?: string) => {
     setEditingId(null);
+    
+    // Calcula automaticamente 30 minutos de duração para a sugestão de horário de fim
+    let endTimeStr = "08:30";
+    if (time) {
+      const [h, m] = time.split(":").map(Number);
+      const dateObj = new Date();
+      dateObj.setHours(h, m + 30, 0); 
+      endTimeStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
+    }
+
     setForm({ 
       patient_id: "", dentist_id: dentistFilter !== "all" ? dentistFilter : "", 
       date: date || selectedDate, 
       start_time: time || "08:00", 
-      end_time: time ? `${(parseInt(time.split(":")[0]) + 1).toString().padStart(2, '0')}:00` : "08:30", 
+      end_time: endTimeStr, 
       appointment_type: "", notes: "", status: "scheduled" 
     });
     setDetailsTarget(null);
     setFormOpen(true);
+  };
+
+  // Função Inteligente: Procura o próximo horário vazio ao clicar no calendário
+  const handleEmptySlotClick = (dateStr: string, timeStr: string) => {
+    let proposedStart = timeStr;
+    const dayApts = filteredAppointments.filter(a => a.date === dateStr && a.status !== 'cancelled');
+    
+    let hasConflict = true;
+    let attempts = 0; // Proteção contra loops infinitos
+    
+    while (hasConflict && attempts < 24) {
+      hasConflict = false;
+      for (const apt of dayApts) {
+        const aptStart = apt.start_time.slice(0, 5);
+        const aptEnd = apt.end_time.slice(0, 5);
+        
+        // Se o horário proposto cai dentro de uma consulta existente
+        if (proposedStart >= aptStart && proposedStart < aptEnd) {
+          proposedStart = aptEnd; // Empurra a sugestão de início para o fim desta consulta
+          hasConflict = true;
+          break;
+        }
+      }
+      attempts++;
+    }
+
+    // Se o horário empurrado passar das 20:00 (fim do expediente)
+    if (proposedStart >= `${endHour}:00`) {
+      toast.error("Horário indisponível ou fora do expediente.");
+      return;
+    }
+
+    openNew(dateStr, proposedStart);
   };
 
   const openEdit = (apt: AppointmentWithRelations) => {
@@ -150,7 +193,7 @@ export default function AgendaPage() {
     setSaving(true);
     try {
       const conflict = await checkConflict(form.dentist_id, form.date, form.start_time, form.end_time, editingId ?? undefined);
-      if (conflict) { toast.error("Conflito de horário para este dentista nesta data."); setSaving(false); return; }
+      if (conflict) { toast.error("Conflito de horário! Este dentista já tem agendamento neste período."); setSaving(false); return; }
 
       const payload: AppointmentInsert = {
         patient_id: form.patient_id, dentist_id: form.dentist_id, date: form.date,
@@ -231,7 +274,6 @@ export default function AgendaPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="icon" onClick={() => changeDate(viewMode === "calendar" ? -7 : -1)}><ChevronLeft className="h-4 w-4" /></Button>
             
-            {/* NOVO SELETOR DE DATA: Input nativo escondido atrás de um botão visual */}
             <div className="relative">
               <input 
                 type="date" 
@@ -303,7 +345,7 @@ export default function AgendaPage() {
               })}
             </div>
             
-            {/* Corpo da Grade (Rola verticalmente) */}
+            {/* Corpo da Grade */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
               <div className="grid grid-cols-[60px_repeat(6,1fr)] min-w-full">
                 
@@ -316,15 +358,16 @@ export default function AgendaPage() {
                   ))}
                 </div>
 
-                {/* Colunas dos Dias (Fundo) */}
+                {/* Colunas dos Dias */}
                 {weekDays.map((date, colIdx) => (
                   <div key={colIdx} className="border-r border-border relative min-h-full">
-                    {/* Linhas de marcação de hora vazias para clique */}
+                    
+                    {/* Linhas de marcação de hora vazias para clique. Chama a função inteligente */}
                     {hours.map(h => (
                       <div 
                         key={h} 
-                        className="h-16 border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
-                        onClick={() => canManage && openNew(formatISO(date), `${h.toString().padStart(2, '0')}:00`)}
+                        className="h-16 border-b border-border/50 hover:bg-primary/5 cursor-pointer transition-colors relative z-0"
+                        onClick={() => canManage && handleEmptySlotClick(formatISO(date), `${h.toString().padStart(2, '0')}:00`)}
                       />
                     ))}
                     
@@ -334,7 +377,10 @@ export default function AgendaPage() {
                       .map(apt => (
                         <div
                           key={apt.id}
-                          onClick={() => setDetailsTarget(apt)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Impede o clique de ativar a grade vazia no fundo
+                            setDetailsTarget(apt);
+                          }}
                           className={`absolute left-1 right-1 rounded-md border p-1.5 overflow-hidden cursor-pointer shadow-sm transition-all hover:scale-[1.02] z-10 flex flex-col gap-0.5 ${STATUS_COLORS[apt.status] || "bg-muted text-foreground"}`}
                           style={getStyleForAppointment(apt.start_time, apt.end_time)}
                           title={`${apt.start_time.slice(0,5)} - ${apt.patients?.name} (${APPOINTMENT_STATUS_LABELS[apt.status]})`}
@@ -354,8 +400,7 @@ export default function AgendaPage() {
           </div>
           
         ) : (
-          
-          /* VISUALIZAÇÃO DE LISTA TRADICIONAL */
+          /* VISUALIZAÇÃO DE LISTA (Omitida por brevidade visual, funciona igual) */
           listFiltered.length === 0 ? (
             <EmptyState title="Nenhuma consulta" description="Sem consultas para este dia." icon={CalendarIcon} />
           ) : (
@@ -440,7 +485,7 @@ export default function AgendaPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Formulario principal de Edicao/Criacao (Inalterado) */}
+        {/* Formulario principal de Edicao/Criacao */}
         <Dialog open={formOpen} onOpenChange={setFormOpen}>
           <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{editingId ? "Editar Consulta" : "Nova Consulta"}</DialogTitle></DialogHeader>
@@ -476,7 +521,7 @@ export default function AgendaPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modais de Cancelamento e Exclusão (Inalterados) */}
+        {/* Modais Secundarios (Cancelamento, Exclusão, WhatsApp, Lembretes) mantidos iguais */}
         <Dialog open={!!cancelId} onOpenChange={(o) => !o && setCancelId(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Cancelar consulta</DialogTitle></DialogHeader>
@@ -491,51 +536,12 @@ export default function AgendaPage() {
           </DialogContent>
         </Dialog>
 
-        <ConfirmDialog
-          open={!!deleteId}
-          onOpenChange={() => setDeleteId(null)}
-          title="Excluir consulta"
-          description="Esta ação remove a consulta permanentemente do banco de dados. Use apenas para corrigir erros de cadastro."
-          confirmLabel="Excluir"
-          onConfirm={confirmDelete}
-          destructive
-        />
+        <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)} title="Excluir consulta" description="Esta ação remove a consulta permanentemente do banco de dados. Use apenas para corrigir erros de cadastro." confirmLabel="Excluir" onConfirm={confirmDelete} destructive />
 
-        {/* Outros modais existentes (WhatsApp, Lembretes) */}
-        {confirmationTarget && (
-          <AppointmentConfirmationModal
-            open={!!confirmationTarget}
-            onClose={() => setConfirmationTarget(null)}
-            appointmentId={confirmationTarget.id}
-            patientName={confirmationTarget.patientName}
-            appointmentStatus={confirmationTarget.status}
-            initialStatus={confirmationTarget.initial}
-          />
-        )}
-
-        {whatsappTarget && (
-          <WhatsAppMessageModal
-            open={!!whatsappTarget}
-            onClose={() => setWhatsappTarget(null)}
-            phone={whatsappTarget.phone}
-            entity="appointment"
-            entityId={whatsappTarget.appointmentId}
-            context="agenda"
-            patientId={whatsappTarget.patientId}
-            appointmentId={whatsappTarget.appointmentId}
-            communicationType="confirmacao_consulta"
-            templateTypes={["confirmacao_consulta", "lembrete_consulta", "outro"]}
-            vars={{
-              nome_paciente: whatsappTarget.patientName,
-              nome_clinica: settings?.clinic_name ?? "",
-              data_consulta: whatsappTarget.date,
-              horario_consulta: whatsappTarget.time,
-              nome_dentista: whatsappTarget.dentist,
-              whatsapp_clinica: settings?.whatsapp ?? "",
-            }}
-          />
-        )}
-
+        {confirmationTarget && <AppointmentConfirmationModal open={!!confirmationTarget} onClose={() => setConfirmationTarget(null)} appointmentId={confirmationTarget.id} patientName={confirmationTarget.patientName} appointmentStatus={confirmationTarget.status} initialStatus={confirmationTarget.initial} />}
+        
+        {whatsappTarget && <WhatsAppMessageModal open={!!whatsappTarget} onClose={() => setWhatsappTarget(null)} phone={whatsappTarget.phone} entity="appointment" entityId={whatsappTarget.appointmentId} context="agenda" patientId={whatsappTarget.patientId} appointmentId={whatsappTarget.appointmentId} communicationType="confirmacao_consulta" templateTypes={["confirmacao_consulta", "lembrete_consulta", "outro"]} vars={{ nome_paciente: whatsappTarget.patientName, nome_clinica: settings?.clinic_name ?? "", data_consulta: whatsappTarget.date, horario_consulta: whatsappTarget.time, nome_dentista: whatsappTarget.dentist, whatsapp_clinica: settings?.whatsapp ?? "" }} />}
+        
         {reminderTarget && (
           <Dialog open={!!reminderTarget} onOpenChange={(o) => !o && setReminderTarget(null)}>
             <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -548,9 +554,7 @@ export default function AgendaPage() {
           </Dialog>
         )}
 
-        {reminderTarget && reminderFormOpen && (
-          <ReminderForm open={reminderFormOpen} onClose={() => setReminderFormOpen(false)} appointmentId={reminderTarget.id} patientId={reminderTarget.patientId} patientName={reminderTarget.patientName} appointmentDate={reminderTarget.date} appointmentTime={reminderTarget.time} dentistName={reminderTarget.dentist} />
-        )}
+        {reminderTarget && reminderFormOpen && <ReminderForm open={reminderFormOpen} onClose={() => setReminderFormOpen(false)} appointmentId={reminderTarget.id} patientId={reminderTarget.patientId} patientName={reminderTarget.patientName} appointmentDate={reminderTarget.date} appointmentTime={reminderTarget.time} dentistName={reminderTarget.dentist} />}
       </div>
     </AppLayout>
   );
