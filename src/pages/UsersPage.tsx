@@ -47,8 +47,8 @@ export default function UsersPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  // Hide patients from staff list
-  const filtered = useMemo(() => staff
+  // Lista de Funcionários
+  const filteredStaff = useMemo(() => staff
     .filter(u => u.role !== "patient")
     .filter(u => roleFilter === "all" || u.role === roleFilter)
     .filter(u => statusFilter === "all" || u.status === statusFilter)
@@ -58,7 +58,19 @@ export default function UsersPage() {
       return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.phone ?? "").includes(search);
     }), [staff, roleFilter, statusFilter, search]);
 
-  const activeCount = staff.filter(u => u.role !== "patient" && u.status === "active").length;
+  // Lista de Pacientes Cadastrados
+  const filteredPatients = useMemo(() => staff
+    .filter(u => u.role === "patient")
+    .filter(u => roleFilter === "all" || u.role === roleFilter)
+    .filter(u => statusFilter === "all" || u.status === statusFilter)
+    .filter(u => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.phone ?? "").includes(search);
+    }), [staff, roleFilter, statusFilter, search]);
+
+  const activeStaffCount = staff.filter(u => u.role !== "patient" && u.status === "active").length;
+  const activePatientsCount = staff.filter(u => u.role === "patient" && u.status === "active").length;
 
   const openNew = () => {
     setEditing(null);
@@ -109,7 +121,7 @@ export default function UsersPage() {
           specialty: form.role === "dentist" ? form.specialty.trim() : undefined,
         });
         await logAudit("user.update", "user", editing.id, { name: form.name, role: form.role });
-        toast.success("Funcionário atualizado com sucesso!");
+        toast.success("Usuário atualizado com sucesso!");
       } else {
         await createStaff({
           email: form.email.trim().toLowerCase(),
@@ -121,7 +133,7 @@ export default function UsersPage() {
           specialty: form.role === "dentist" ? form.specialty.trim() : undefined,
         });
         await logAudit("user.create", "user", null, { email: form.email, role: form.role });
-        toast.success("Funcionário cadastrado com sucesso!");
+        toast.success("Usuário cadastrado com sucesso!");
       }
       setFormOpen(false);
     } catch (e) {
@@ -137,19 +149,19 @@ export default function UsersPage() {
       if (confirm.action === "inactivate") {
         await updateStaff({ user_id: confirm.id, status: "inactive" });
         await logAudit("user.inactivate", "user", confirm.id, { name: confirm.name });
-        toast.success("Funcionário inativado.");
+        toast.success("Usuário inativado.");
       } else if (confirm.action === "block") {
         await updateStaff({ user_id: confirm.id, status: "blocked" });
         await logAudit("user.block", "user", confirm.id, { name: confirm.name });
-        toast.success("Funcionário bloqueado.");
+        toast.success("Usuário bloqueado.");
       } else if (confirm.action === "reactivate") {
         await updateStaff({ user_id: confirm.id, status: "active" });
         await logAudit("user.reactivate", "user", confirm.id, { name: confirm.name });
-        toast.success("Funcionário reativado.");
+        toast.success("Usuário reativado.");
       } else if (confirm.action === "delete") {
         await deleteStaff(confirm.id);
         await logAudit("user.delete", "user", confirm.id, { name: confirm.name });
-        toast.success("Funcionário excluído.");
+        toast.success("Usuário excluído.");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao executar ação.");
@@ -163,13 +175,70 @@ export default function UsersPage() {
   const statusVariant = (s: StaffMember["status"]) =>
     s === "active" ? "active" : s === "blocked" ? "cancelled" : "inactive";
 
+  // Componente reutilizável para renderizar a tabela sem duplicar código
+  const renderTable = (data: StaffMember[], emptyMessage: string) => (
+    <div className="rounded-xl bg-surface shadow-card overflow-hidden overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Usuário</TableHead>
+            <TableHead className="hidden md:table-cell">E-mail</TableHead>
+            <TableHead className="hidden lg:table-cell">Telefone</TableHead>
+            <TableHead className="hidden sm:table-cell">Perfil</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.length === 0 ? (
+            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{emptyMessage}</TableCell></TableRow>
+          ) : data.map(u => (
+            <TableRow key={u.id}>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">{u.name.charAt(0).toUpperCase()}</div>
+                  <div>
+                    <p className="font-medium leading-tight">{u.name}</p>
+                    {u.cro && <p className="text-[11px] text-muted-foreground">CRO {u.cro}{u.specialty ? ` · ${u.specialty}` : ""}</p>}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="hidden md:table-cell text-muted-foreground">{u.email}</TableCell>
+              <TableCell className="hidden lg:table-cell text-muted-foreground">{u.phone || "—"}</TableCell>
+              <TableCell className="hidden sm:table-cell">
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-muted text-foreground">{ROLE_LABELS[u.role]}</span>
+              </TableCell>
+              <TableCell>
+                <StatusBadge status={statusVariant(u.status)} label={statusLabel(u.status)} />
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)} title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
+                  {u.status === "active" && u.id !== currentUser?.id && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" onClick={() => setConfirm({ id: u.id, action: "block", name: u.name })} title="Bloquear"><Ban className="h-3.5 w-3.5" /></Button>
+                  )}
+                  {u.status !== "active" && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => setConfirm({ id: u.id, action: "reactivate", name: u.name })} title="Reativar"><RotateCcw className="h-3.5 w-3.5" /></Button>
+                  )}
+                  {u.id !== currentUser?.id && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setConfirm({ id: u.id, action: "delete", name: u.name })} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <PageHeader
-          title="Gestão de Funcionários"
-          description={loading ? "Carregando..." : `${activeCount} funcionário${activeCount === 1 ? "" : "s"} ativo${activeCount === 1 ? "" : "s"}`}
-          actionLabel="Novo Funcionário"
+          title="Gestão de Acessos"
+          description={loading ? "Carregando..." : `${activeStaffCount} funcionários e ${activePatientsCount} pacientes com acesso`}
+          actionLabel="Novo Usuário"
           onAction={openNew}
         >
           <div className="relative">
@@ -180,7 +249,7 @@ export default function UsersPage() {
             <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Perfil" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os perfis</SelectItem>
-              {(["admin", "receptionist", "dentist", "assistant"] as UserRole[]).map(r => (
+              {(["admin", "receptionist", "dentist", "assistant", "patient"] as UserRole[]).map(r => (
                 <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
               ))}
             </SelectContent>
@@ -199,64 +268,28 @@ export default function UsersPage() {
         {loading ? (
           <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
         ) : (
-          <div className="rounded-xl bg-surface shadow-card overflow-hidden overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Funcionário</TableHead>
-                  <TableHead className="hidden md:table-cell">E-mail</TableHead>
-                  <TableHead className="hidden lg:table-cell">Telefone</TableHead>
-                  <TableHead className="hidden sm:table-cell">Perfil</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum funcionário encontrado.</TableCell></TableRow>
-                ) : filtered.map(u => (
-                  <TableRow key={u.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">{u.name.charAt(0).toUpperCase()}</div>
-                        <div>
-                          <p className="font-medium leading-tight">{u.name}</p>
-                          {u.cro && <p className="text-[11px] text-muted-foreground">CRO {u.cro}{u.specialty ? ` · ${u.specialty}` : ""}</p>}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">{u.email}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-muted-foreground">{u.phone || "—"}</TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-muted text-foreground">{ROLE_LABELS[u.role]}</span>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={statusVariant(u.status)} label={statusLabel(u.status)} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)} title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
-                        {u.status === "active" && u.id !== currentUser?.id && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" onClick={() => setConfirm({ id: u.id, action: "block", name: u.name })} title="Bloquear"><Ban className="h-3.5 w-3.5" /></Button>
-                        )}
-                        {u.status !== "active" && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => setConfirm({ id: u.id, action: "reactivate", name: u.name })} title="Reativar"><RotateCcw className="h-3.5 w-3.5" /></Button>
-                        )}
-                        {u.id !== currentUser?.id && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setConfirm({ id: u.id, action: "delete", name: u.name })} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="space-y-8">
+            {/* Seção da Equipe */}
+            {(roleFilter === "all" || roleFilter !== "patient") && (
+              <div className="space-y-3">
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">Equipe da Clínica</h2>
+                {renderTable(filteredStaff, "Nenhum funcionário encontrado.")}
+              </div>
+            )}
+
+            {/* Seção dos Pacientes */}
+            {(roleFilter === "all" || roleFilter === "patient") && (
+              <div className="space-y-3">
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">Pacientes Cadastrados (App)</h2>
+                {renderTable(filteredPatients, "Nenhum paciente com acesso encontrado.")}
+              </div>
+            )}
           </div>
         )}
 
         <Dialog open={formOpen} onOpenChange={setFormOpen}>
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editing ? "Editar Funcionário" : "Novo Funcionário"}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editing ? "Editar Usuário" : "Novo Usuário"}</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2 sm:col-span-2">
@@ -277,7 +310,7 @@ export default function UsersPage() {
                   <Select value={form.role} onValueChange={v => setForm({ ...form, role: v as UserRole })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {(["admin", "receptionist", "dentist", "assistant"] as UserRole[]).map(r => (
+                      {(["admin", "receptionist", "dentist", "assistant", "patient"] as UserRole[]).map(r => (
                         <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
                       ))}
                     </SelectContent>
@@ -330,7 +363,7 @@ export default function UsersPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>Cancelar</Button>
                 <Button onClick={handleSave} disabled={saving}>
-                  {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando</> : (editing ? "Salvar alterações" : "Criar funcionário")}
+                  {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando</> : (editing ? "Salvar alterações" : "Criar usuário")}
                 </Button>
               </div>
             </div>
@@ -341,18 +374,18 @@ export default function UsersPage() {
           open={!!confirm}
           onOpenChange={() => setConfirm(null)}
           title={
-            confirm?.action === "inactivate" ? "Inativar funcionário" :
-            confirm?.action === "block" ? "Bloquear funcionário" :
-            confirm?.action === "reactivate" ? "Reativar funcionário" : "Excluir funcionário"
+            confirm?.action === "inactivate" ? "Inativar usuário" :
+            confirm?.action === "block" ? "Bloquear usuário" :
+            confirm?.action === "reactivate" ? "Reativar usuário" : "Excluir usuário"
           }
           description={
             confirm?.action === "delete"
-              ? `O funcionário "${confirm.name}" será excluído permanentemente. Esta ação não pode ser desfeita.`
+              ? `O usuário "${confirm.name}" será excluído permanentemente. Esta ação não pode ser desfeita.`
               : confirm?.action === "block"
-              ? `O funcionário "${confirm?.name}" será bloqueado e não poderá acessar o sistema.`
+              ? `O usuário "${confirm?.name}" será bloqueado e não poderá acessar o sistema.`
               : confirm?.action === "reactivate"
               ? `Reativar o acesso de "${confirm?.name}" ao sistema?`
-              : `O funcionário "${confirm?.name}" será inativado.`
+              : `O usuário "${confirm?.name}" será inativado.`
           }
           confirmLabel={confirm?.action === "reactivate" ? "Reativar" : confirm?.action === "delete" ? "Excluir" : confirm?.action === "block" ? "Bloquear" : "Inativar"}
           onConfirm={handleConfirm}
