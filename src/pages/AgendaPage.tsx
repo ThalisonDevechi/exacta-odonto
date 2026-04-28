@@ -106,12 +106,21 @@ export default function AgendaPage() {
   // Filtro para Lista (1 dia)
   const listFiltered = useMemo(() => filteredAppointments.filter(a => a.date === selectedDate), [filteredAppointments, selectedDate]);
 
-  // Cálculos da Semana (Seg a Sab)
+  // Cálculos da Grade
   const weekStart = useMemo(() => getMonday(selectedDate), [selectedDate]);
   const weekDays = useMemo(() => Array.from({ length: 6 }).map((_, i) => addDays(weekStart, i)), [weekStart]);
   const startHour = 8;
   const endHour = 20;
-  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => i + startHour);
+  
+  // Eixo Y (Horas)
+  const hours = Array.from({ length: endHour - startHour }, (_, i) => i + startHour);
+  
+  // Blocos interativos (De 30 em 30 min)
+  const timeSlots = Array.from({ length: (endHour - startHour) * 2 }, (_, i) => {
+    const h = Math.floor(i / 2) + startHour;
+    const m = i % 2 === 0 ? "00" : "30";
+    return `${h.toString().padStart(2, '0')}:${m}`;
+  });
 
   const changeDate = (days: number) => {
     setSelectedDate(formatISO(addDays(new Date(selectedDate + "T12:00:00"), days)));
@@ -120,7 +129,7 @@ export default function AgendaPage() {
   const openNew = (date?: string, time?: string) => {
     setEditingId(null);
     
-    // Calcula automaticamente 30 minutos de duração para a sugestão de horário de fim
+    // Calcula automaticamente 30 minutos de duração
     let endTimeStr = "08:30";
     if (time) {
       const [h, m] = time.split(":").map(Number);
@@ -131,46 +140,27 @@ export default function AgendaPage() {
 
     setForm({ 
       patient_id: "", dentist_id: dentistFilter !== "all" ? dentistFilter : "", 
-      date: date || selectedDate, 
-      start_time: time || "08:00", 
-      end_time: endTimeStr, 
+      date: date || selectedDate, start_time: time || "08:00", end_time: endTimeStr, 
       appointment_type: "", notes: "", status: "scheduled" 
     });
     setDetailsTarget(null);
     setFormOpen(true);
   };
 
-  // Função Inteligente: Procura o próximo horário vazio ao clicar no calendário
-  const handleEmptySlotClick = (dateStr: string, timeStr: string) => {
-    let proposedStart = timeStr;
-    const dayApts = filteredAppointments.filter(a => a.date === dateStr && a.status !== 'cancelled');
-    
-    let hasConflict = true;
-    let attempts = 0; // Proteção contra loops infinitos
-    
-    while (hasConflict && attempts < 24) {
-      hasConflict = false;
-      for (const apt of dayApts) {
-        const aptStart = apt.start_time.slice(0, 5);
-        const aptEnd = apt.end_time.slice(0, 5);
-        
-        // Se o horário proposto cai dentro de uma consulta existente
-        if (proposedStart >= aptStart && proposedStart < aptEnd) {
-          proposedStart = aptEnd; // Empurra a sugestão de início para o fim desta consulta
-          hasConflict = true;
-          break;
-        }
-      }
-      attempts++;
-    }
+  // Lógica inteligente: Verifica se o slot de 30 minutos tem ALGUM cruzamento com consultas existentes
+  const isSlotOccupied = (dateStr: string, timeStr: string) => {
+    const slotStart = timeStr;
+    const [h, m] = timeStr.split(":").map(Number);
+    const endM = m + 30;
+    const slotEnd = endM === 60 ? `${(h+1).toString().padStart(2,'0')}:00` : `${h.toString().padStart(2,'0')}:${endM}`;
 
-    // Se o horário empurrado passar das 20:00 (fim do expediente)
-    if (proposedStart >= `${endHour}:00`) {
-      toast.error("Horário indisponível ou fora do expediente.");
-      return;
-    }
-
-    openNew(dateStr, proposedStart);
+    return filteredAppointments.some(apt => {
+      if (apt.date !== dateStr || apt.status === 'cancelled') return false;
+      const aptStart = apt.start_time.slice(0, 5);
+      const aptEnd = apt.end_time.slice(0, 5);
+      // Ocorre cruzamento se (InicioConsulta < FimDoSlot) E (FimConsulta > InicioDoSlot)
+      return aptStart < slotEnd && aptEnd > slotStart;
+    });
   };
 
   const openEdit = (apt: AppointmentWithRelations) => {
@@ -178,8 +168,7 @@ export default function AgendaPage() {
     setForm({
       patient_id: apt.patient_id, dentist_id: apt.dentist_id, date: apt.date,
       start_time: apt.start_time.slice(0, 5), end_time: apt.end_time.slice(0, 5),
-      appointment_type: apt.appointment_type ?? "", notes: apt.notes ?? "",
-      status: apt.status,
+      appointment_type: apt.appointment_type ?? "", notes: apt.notes ?? "", status: apt.status,
     });
     setDetailsTarget(null);
     setFormOpen(true);
@@ -200,6 +189,7 @@ export default function AgendaPage() {
         start_time: form.start_time, end_time: form.end_time, appointment_type: form.appointment_type.trim(),
         notes: form.notes.trim() || null, status: form.status, created_by: user?.id ?? null,
       };
+      
       if (editingId) {
         await updateAppointment(editingId, payload);
         await logAudit("appointment.update", "appointment", editingId, { date: payload.date, type: payload.appointment_type });
@@ -349,7 +339,7 @@ export default function AgendaPage() {
             <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
               <div className="grid grid-cols-[60px_repeat(6,1fr)] min-w-full">
                 
-                {/* Coluna de Horários (Fundo) */}
+                {/* Coluna Esquerda: Horários */}
                 <div className="border-r border-border relative bg-muted/10">
                   {hours.map(h => (
                     <div key={h} className="h-16 border-b border-border flex justify-center pt-2">
@@ -358,49 +348,64 @@ export default function AgendaPage() {
                   ))}
                 </div>
 
-                {/* Colunas dos Dias */}
-                {weekDays.map((date, colIdx) => (
-                  <div key={colIdx} className="border-r border-border relative min-h-full">
-                    
-                    {/* Linhas de marcação de hora vazias para clique. Chama a função inteligente */}
-                    {hours.map(h => (
-                      <div 
-                        key={h} 
-                        className="h-16 border-b border-border/50 hover:bg-primary/5 cursor-pointer transition-colors relative z-0"
-                        onClick={() => canManage && handleEmptySlotClick(formatISO(date), `${h.toString().padStart(2, '0')}:00`)}
-                      />
-                    ))}
-                    
-                    {/* Renderização dos Blocos de Agendamento */}
-                    {filteredAppointments
-                      .filter(a => a.date === formatISO(date))
-                      .map(apt => (
-                        <div
-                          key={apt.id}
-                          onClick={(e) => {
-                            e.stopPropagation(); // Impede o clique de ativar a grade vazia no fundo
-                            setDetailsTarget(apt);
-                          }}
-                          className={`absolute left-1 right-1 rounded-md border p-1.5 overflow-hidden cursor-pointer shadow-sm transition-all hover:scale-[1.02] z-10 flex flex-col gap-0.5 ${STATUS_COLORS[apt.status] || "bg-muted text-foreground"}`}
-                          style={getStyleForAppointment(apt.start_time, apt.end_time)}
-                          title={`${apt.start_time.slice(0,5)} - ${apt.patients?.name} (${APPOINTMENT_STATUS_LABELS[apt.status]})`}
-                        >
-                          <div className="flex justify-between items-start w-full">
-                            <span className="text-[10px] font-bold opacity-80">{apt.start_time.slice(0,5)}</span>
-                            {apt.confirmation_status === "confirmada" && <CheckCircle2 className="h-3 w-3 opacity-70" />}
+                {/* Colunas dos Dias (Fundos bloqueáveis) */}
+                {weekDays.map((date, colIdx) => {
+                  const dateStr = formatISO(date);
+                  return (
+                    <div key={colIdx} className="border-r border-border relative min-h-full">
+                      
+                      {/* Geração dos Blocos de Fundo (30 em 30 mins) */}
+                      {timeSlots.map(time => {
+                        const occupied = isSlotOccupied(dateStr, time);
+                        return (
+                          <div 
+                            key={time} 
+                            className={`h-8 border-b border-border/30 transition-colors relative z-0 ${
+                              occupied 
+                                ? "cursor-not-allowed opacity-50" // Se o bloco já tem consulta, desativa tudo (nem hover tem)
+                                : "hover:bg-primary/10 cursor-pointer" // Se está livre, permite o clique
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!occupied && canManage) {
+                                openNew(dateStr, time);
+                              }
+                            }}
+                          />
+                        );
+                      })}
+                      
+                      {/* Renderização dos Blocos Coloridos dos Agendamentos */}
+                      {filteredAppointments
+                        .filter(a => a.date === dateStr)
+                        .map(apt => (
+                          <div
+                            key={apt.id}
+                            onClick={(e) => {
+                              e.stopPropagation(); // Trava o clique aqui para nao acionar o fundo branco jamais
+                              setDetailsTarget(apt);
+                            }}
+                            className={`absolute left-0.5 right-0.5 rounded-md border p-1.5 overflow-hidden cursor-pointer shadow-sm transition-all hover:scale-[1.02] z-10 flex flex-col gap-0.5 ${STATUS_COLORS[apt.status] || "bg-muted text-foreground"}`}
+                            style={getStyleForAppointment(apt.start_time, apt.end_time)}
+                            title={`${apt.start_time.slice(0,5)} - ${apt.patients?.name} (${APPOINTMENT_STATUS_LABELS[apt.status]})`}
+                          >
+                            <div className="flex justify-between items-start w-full">
+                              <span className="text-[10px] font-bold opacity-80">{apt.start_time.slice(0,5)}</span>
+                              {apt.confirmation_status === "confirmada" && <CheckCircle2 className="h-3 w-3 opacity-70" />}
+                            </div>
+                            <span className="text-xs font-semibold leading-tight truncate">{apt.patients?.name}</span>
+                            <span className="text-[10px] leading-tight truncate opacity-90">{apt.dentists?.name?.split(' ')[0]}</span>
                           </div>
-                          <span className="text-xs font-semibold leading-tight truncate">{apt.patients?.name}</span>
-                          <span className="text-[10px] leading-tight truncate opacity-90">{apt.dentists?.name?.split(' ')[0]}</span>
-                        </div>
-                    ))}
-                  </div>
-                ))}
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
           
         ) : (
-          /* VISUALIZAÇÃO DE LISTA (Omitida por brevidade visual, funciona igual) */
+          /* VISUALIZAÇÃO DE LISTA */
           listFiltered.length === 0 ? (
             <EmptyState title="Nenhuma consulta" description="Sem consultas para este dia." icon={CalendarIcon} />
           ) : (
@@ -521,7 +526,7 @@ export default function AgendaPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Modais Secundarios (Cancelamento, Exclusão, WhatsApp, Lembretes) mantidos iguais */}
+        {/* Modais Secundarios (Cancelamento, Exclusão, WhatsApp, Lembretes) */}
         <Dialog open={!!cancelId} onOpenChange={(o) => !o && setCancelId(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Cancelar consulta</DialogTitle></DialogHeader>
