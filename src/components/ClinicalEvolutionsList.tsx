@@ -15,11 +15,12 @@ import { toast } from "sonner";
 interface Props {
   patientId: string;
   medicalRecordId: string | null;
+  isPatientActive: boolean; // NOVO
 }
 
 const STATUS_LABELS = { active: "Ativa", rectified: "Retificada", cancelled: "Cancelada" } as const;
 
-export function ClinicalEvolutionsList({ patientId, medicalRecordId }: Props) {
+export function ClinicalEvolutionsList({ patientId, medicalRecordId, isPatientActive }: Props) {
   const { user } = useAuth();
   const { evolutions, loading, addEvolution, rectifyEvolution, cancelEvolution, toggleRelease } = useClinicalEvolutions(patientId);
 
@@ -35,8 +36,9 @@ export function ClinicalEvolutionsList({ patientId, medicalRecordId }: Props) {
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  const isClinical = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant");
-  const canRectify = user && (user.role === "admin" || user.role === "dentist");
+  // ATUALIZADO: O paciente deve estar ativo para criar/retificar evoluções
+  const isClinical = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant") && isPatientActive;
+  const canRectify = user && (user.role === "admin" || user.role === "dentist") && isPatientActive;
 
   const handleCreate = async () => {
     if (!newDescription.trim()) { toast.error("Descreva a evolução clínica."); return; }
