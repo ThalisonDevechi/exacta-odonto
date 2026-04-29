@@ -180,8 +180,11 @@ export default function FinancialPage() {
 
   const save = async () => {
     if (!form.patient_id || !form.description) { toast.error("Paciente e descrição obrigatórios."); return; }
-    if (form.original_value < 0) { toast.error("Valor não pode ser negativo."); return; }
+    // CORREÇÃO: Impedir valor <= 0 e obrigar data de vencimento
+    if (form.original_value <= 0) { toast.error("O valor original deve ser maior que zero."); return; }
+    if (!form.due_date) { toast.error("A data de vencimento é obrigatória."); return; }
     if (form.discount_value > form.original_value) { toast.error("Desconto não pode exceder o valor."); return; }
+    
     const payload = {
       patient_id: form.patient_id,
       description: form.description,
@@ -345,7 +348,7 @@ export default function FinancialPage() {
                     <SelectContent>{Object.entries(PAYMENT_METHOD_LABELS_V2).map(([k,v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Vencimento *</Label><Input type="date" value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} /></div>
               </div>
               <p className="text-xs text-muted-foreground">Valor final: {fmt(Math.max(0, form.original_value - form.discount_value))}</p>
               <div className="flex justify-end gap-2">
