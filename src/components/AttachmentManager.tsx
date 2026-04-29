@@ -13,12 +13,16 @@ import { Upload, FileText, Image as ImageIcon, Download, Eye, Trash2, Loader2, P
 interface Props {
   patientId: string;
   medicalRecordId?: string | null;
+  isPatientActive: boolean; // NOVO
 }
 
-export function AttachmentManager({ patientId, medicalRecordId }: Props) {
+export function AttachmentManager({ patientId, medicalRecordId, isPatientActive }: Props) {
   const { user } = useAuth();
-  const canUpload = user ? canUploadAttachment(user.role) : false;
-  const canManage = user ? canManageAttachment(user.role) : false;
+  
+  // ATUALIZADO: O paciente deve estar ativo
+  const canUpload = user ? (canUploadAttachment(user.role) && isPatientActive) : false;
+  const canManage = user ? (canManageAttachment(user.role) && isPatientActive) : false;
+  
   const { attachments, loading, upload, getSignedUrl, setReleased, deactivate } = useAttachments(patientId);
 
   const fileRef = useRef<HTMLInputElement>(null);
