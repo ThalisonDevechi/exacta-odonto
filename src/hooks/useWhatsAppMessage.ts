@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { openWhatsApp } from "@/services/whatsappService";
+import { communicationLogService } from "@/services/communicationLogService";
 
 export type WhatsAppMessage = {
   id: string;
@@ -12,6 +14,9 @@ export type WhatsAppMessage = {
   created_at: string;
 };
 
+// ==========================================
+// 1. O HOOK NOVO (Para o Chat em Tempo Real)
+// ==========================================
 export function useWhatsAppMessages(patientId: string | null) {
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,7 +27,6 @@ export function useWhatsAppMessages(patientId: string | null) {
       return;
     }
 
-    // 1. Busca o histórico de mensagens
     const fetchMessages = async () => {
       setLoading(true);
       const { data } = await (supabase as any)
@@ -37,14 +41,11 @@ export function useWhatsAppMessages(patientId: string | null) {
 
     fetchMessages();
 
-    // 2. Fica "escutando" o banco em tempo real
-    // CORREÇÃO: (supabase as any) adicionado aqui para o Vercel não travar com a tabela nova
     const channel = (supabase as any)
       .channel(`messages-${patientId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `patient_id=eq.${patientId}` },
-        // CORREÇÃO: O (payload: any) é obrigatório aqui para evitar o erro de "implicit any" do TypeScript
         (payload: any) => {
           setMessages((prev) => [...prev, payload.new as WhatsAppMessage]);
         }
@@ -56,7 +57,6 @@ export function useWhatsAppMessages(patientId: string | null) {
     };
   }, [patientId]);
 
-  // 3. Função para salvar nossa mensagem enviada com dados de quem enviou
   const sendMessage = async (content: string, senderId?: string, senderName?: string) => {
     if (!patientId) return;
     const { error } = await (supabase as any).from("whatsapp_messages").insert({
@@ -71,4 +71,32 @@ export function useWhatsAppMessages(patientId: string | null) {
   };
 
   return { messages, loading, sendMessage };
+}
+
+// ==========================================
+// 2. O HOOK ANTIGO RESTAURADO (Para os Modais de Lembrete)
+// ==========================================
+export function useWhatsAppMessage() {
+  const send = async (params: any) => {
+    // Abre a aba do WhatsApp Web/App
+    openWhatsApp(params.phone, params.message);
+    
+    // Salva no histórico de comunicação do paciente
+    try {
+      await communicationLogService.create({
+        patient_id: params.patientId || null,
+        appointment_id: params.appointmentId || null,
+        channel: "whatsapp",
+        direction: "enviada",
+        status: "enviada_manual",
+        type: params.communicationType || "atendimento_manual",
+        content: params.message,
+        notes: params.context ? `Enviado via: ${params.context}` : null
+      });
+    } catch (err) {
+      console.error("Erro ao salvar log de comunicação", err);
+    }
+  };
+
+  return { send };
 }
