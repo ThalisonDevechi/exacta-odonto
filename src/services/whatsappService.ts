@@ -15,14 +15,19 @@ export function normalizePhone(phone: string | null | undefined): string {
 
 export function isValidWhatsAppPhone(phone: string | null | undefined): boolean {
   const n = normalizePhone(phone);
-  // 55 + DDD(2) + number(8 or 9) = 12 or 13 digits
+  // 55 + DDD(2) + number(8 or 9) = 12 or 13 digits.
+  // Accepting 14 keeps the app tolerant to already-normalized numbers with
+  // regional/provider prefixes, but empty/incomplete values are always blocked.
   return n.length >= 12 && n.length <= 14;
 }
 
 export function buildWhatsAppLink(phone: string | null | undefined, message: string): string {
+  if (!isValidWhatsAppPhone(phone)) {
+    throw new Error("Paciente sem telefone válido para WhatsApp.");
+  }
+
   const n = normalizePhone(phone);
   const text = encodeURIComponent(message ?? "");
-  if (!n) return `https://wa.me/?text=${text}`;
   return `https://wa.me/${n}?text=${text}`;
 }
 
