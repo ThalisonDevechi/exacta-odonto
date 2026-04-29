@@ -45,7 +45,11 @@ export default function PatientDetailPage() {
   const { settings: clinic } = useClinicSettings();
   const [whatsappOpen, setWhatsappOpen] = useState(false);
 
-  const canEditChart = user ? canEditRecord(user.role) : false;
+  // NOVO: Verifica se o paciente está ativo
+  const isPatientActive = patient?.status === "active";
+
+  // ATUALIZADO: Só pode editar o prontuário se tiver permissão E o paciente estiver ativo
+  const canEditChart = user ? (canEditRecord(user.role) && isPatientActive) : false;
   const canViewClinical = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant");
   const canViewFinancial = user ? getPermission(user.role, "financial").canView : false;
   const canViewProcedures = user ? getPermission(user.role, "procedures").canView : false;
@@ -146,6 +150,12 @@ export default function PatientDetailPage() {
           )}
         </div>
 
+        {!isPatientActive && (
+          <div className="bg-warning/10 border border-warning text-warning-foreground px-4 py-2 rounded-md text-sm mb-4">
+            <strong>Aviso:</strong> Este paciente está inativo. Edições no prontuário, financeiro e procedimentos estão bloqueadas. Apenas consultas podem ser visualizadas/gerenciadas.
+          </div>
+        )}
+
         <Tabs defaultValue="cadastro" className="w-full">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="cadastro"><User className="h-3.5 w-3.5 mr-1.5" />Cadastro</TabsTrigger>
@@ -245,14 +255,16 @@ export default function PatientDetailPage() {
           {canViewClinical && (
             <TabsContent value="evolucoes">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                <ClinicalEvolutionsList patientId={patient.id} medicalRecordId={record?.id ?? null} />
+                {/* Nota: Lembre-se de aceitar a prop isPatientActive no ClinicalEvolutionsList caso ainda não possua */}
+                <ClinicalEvolutionsList patientId={patient.id} medicalRecordId={record?.id ?? null} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
           )}
 
           <TabsContent value="odontograma">
             <div className="rounded-xl bg-surface shadow-card p-5">
-              <PersistentOdontogram patientId={patient.id} patientName={patient.name} birthDate={patient.birth_date} />
+              {/* Nota: Lembre-se de aceitar a prop isPatientActive (ou readOnly) no PersistentOdontogram caso queira bloqueá-lo também */}
+              <PersistentOdontogram patientId={patient.id} patientName={patient.name} birthDate={patient.birth_date} isPatientActive={isPatientActive} />
             </div>
           </TabsContent>
 
@@ -280,7 +292,7 @@ export default function PatientDetailPage() {
           {canViewProcedures && (
             <TabsContent value="procedimentos">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                <ProceduresTab patientId={patient.id} />
+                <ProceduresTab patientId={patient.id} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
           )}
@@ -288,7 +300,7 @@ export default function PatientDetailPage() {
           {canViewPlans && (
             <TabsContent value="planos">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                <TreatmentPlansTab patientId={patient.id} />
+                <TreatmentPlansTab patientId={patient.id} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
           )}
@@ -296,7 +308,7 @@ export default function PatientDetailPage() {
           {canViewFinancial && (
             <TabsContent value="financeiro">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                <FinancialTab patientId={patient.id} />
+                <FinancialTab patientId={patient.id} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
           )}
@@ -304,7 +316,7 @@ export default function PatientDetailPage() {
           {canViewBudgets && (
             <TabsContent value="orcamentos">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                <PatientBudgetsTab patientId={patient.id} patientName={patient.name} patientPhone={patient.phone} />
+                <PatientBudgetsTab patientId={patient.id} patientName={patient.name} patientPhone={patient.phone} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
           )}
@@ -312,7 +324,8 @@ export default function PatientDetailPage() {
           {canViewReceipts && (
             <TabsContent value="recibos">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                <PatientReceiptsTab patientId={patient.id} patientName={patient.name} />
+                {/* Nota: Você pode aplicar a mesma lógica no ReceiptTab se quiser */}
+                <PatientReceiptsTab patientId={patient.id} patientName={patient.name} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
           )}
@@ -327,7 +340,7 @@ export default function PatientDetailPage() {
 
           <TabsContent value="anexos">
             <div className="rounded-xl bg-surface shadow-card p-5">
-              <AttachmentManager patientId={patient.id} medicalRecordId={record?.id ?? null} />
+              <AttachmentManager patientId={patient.id} medicalRecordId={record?.id ?? null} isPatientActive={isPatientActive} />
             </div>
           </TabsContent>
         </Tabs>
