@@ -27,7 +27,7 @@ export function useAppointments() {
     if (error) {
       setError(error.message);
     } else {
-      setError(null); // <-- CORREÇÃO AQUI
+      setError(null);
       setAppointments((data ?? []) as AppointmentWithRelations[]);
     }
     setLoading(false);
@@ -42,14 +42,20 @@ export function useAppointments() {
     end: string,
     ignoreId?: string,
   ): Promise<boolean> => {
+    // CORREÇÃO: Formatar para garantir os segundos e não falhar na query string
+    const formattedStart = start.length === 5 ? `${start}:00` : start;
+    const formattedEnd = end.length === 5 ? `${end}:00` : end;
+
     let q = supabase.from("appointments")
       .select("id")
       .eq("dentist_id", dentistId)
       .eq("date", date)
       .neq("status", "cancelled")
-      .lt("start_time", end)
-      .gt("end_time", start);
+      .lt("start_time", formattedEnd)
+      .gt("end_time", formattedStart);
+      
     if (ignoreId) q = q.neq("id", ignoreId);
+    
     const { data } = await q;
     return (data?.length ?? 0) > 0;
   };
