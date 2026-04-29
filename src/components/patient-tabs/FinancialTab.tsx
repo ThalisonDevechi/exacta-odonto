@@ -17,12 +17,19 @@ import { toast } from "sonner";
 
 const fmtMoney = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
-export function FinancialTab({ patientId }: { patientId: string }) {
+interface Props {
+  patientId: string;
+  isPatientActive: boolean; // NOVO
+}
+
+export function FinancialTab({ patientId, isPatientActive }: Props) {
   const { user } = useAuth();
-  const canCreate = user ? canCreateFinancialRecord(user.role) : false;
-  const canEditValue = user ? canEditFinancialOriginalValue(user.role) : false;
-  const canPay = user ? canReceivePayment(user.role) : false;
-  const canCancel = user ? canCancelOrRefundFinancial(user.role) : false;
+  
+  // ATUALIZADO: Cruzando a permissão do user com o isPatientActive
+  const canCreate = user ? (canCreateFinancialRecord(user.role) && isPatientActive) : false;
+  const canEditValue = user ? (canEditFinancialOriginalValue(user.role) && isPatientActive) : false;
+  const canPay = user ? (canReceivePayment(user.role) && isPatientActive) : false;
+  const canCancel = user ? (canCancelOrRefundFinancial(user.role) && isPatientActive) : false;
 
   const { records, loading, addRecord, registerPayment, cancelRecord, refundRecord } = useFinancialRecords(patientId);
 
