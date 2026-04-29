@@ -27,6 +27,7 @@ import BudgetsPage from "./pages/BudgetsPage";
 import ReceiptsPage from "./pages/ReceiptsPage";
 import BackupExportPage from "./pages/BackupExportPage";
 import NotFound from "./pages/NotFound";
+import WhatsAppChatPage from "./pages/WhatsAppChatPage";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ function AppRoutes() {
       <Route path="/backup-exportacao" element={<ProtectedRoute module="backupExports"><BackupExportPage /></ProtectedRoute>} />
       <Route path="/perfil" element={<ProfilePage />} />
       <Route path="/acesso-negado" element={<AccessDeniedPage />} />
+      <Route path="/whatsapp" element={<ProtectedRoute module="patients"><WhatsAppChatPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
