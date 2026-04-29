@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Send, Bot, User, QrCode, MessageCircle, Info } from "lucide-react";
+import { Search, Send, Bot, User, QrCode, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export default function WhatsAppChatPage() {
@@ -54,7 +54,10 @@ export default function WhatsAppChatPage() {
         .eq("id", selectedPatient.id);
       
       if (error) throw error;
-      selectedPatient.bot_enabled = checked; // update local state optimistic
+      
+      // Correção do TypeScript aqui:
+      (selectedPatient as any).bot_enabled = checked; 
+      
       toast.success(checked ? "IA ativada para este paciente." : "Bot pausado! Você assumiu a conversa.");
     } catch (e) {
       toast.error("Erro ao alterar IA.");
@@ -125,7 +128,8 @@ export default function WhatsAppChatPage() {
               >
                 <div className="flex justify-between items-start mb-1">
                   <h3 className="font-medium text-sm truncate pr-2">{patient.name}</h3>
-                  {patient.bot_enabled && <Bot className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />}
+                  {/* Correção do TypeScript aqui: */}
+                  {(patient as any).bot_enabled !== false && <Bot className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">{patient.phone || "Sem número"}</p>
               </div>
@@ -166,7 +170,7 @@ export default function WhatsAppChatPage() {
                 </div>
               </div>
 
-              {/* ÁREA DE MENSAGENS (Aqui no futuro vamos puxar o histórico do banco) */}
+              {/* ÁREA DE MENSAGENS */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="flex justify-center mb-6">
                   <span className="text-xs bg-white/60 px-3 py-1 rounded-md text-slate-500 shadow-sm backdrop-blur-sm">
@@ -174,7 +178,6 @@ export default function WhatsAppChatPage() {
                   </span>
                 </div>
                 
-                {/* Exemplo visual de mensagem do sistema */}
                 <div className="flex justify-start">
                   <div className="bg-white p-3 rounded-lg rounded-tl-none max-w-md shadow-sm border border-slate-100">
                     <p className="text-sm text-slate-800">Mensagens do paciente aparecerão aqui em breve.</p>
