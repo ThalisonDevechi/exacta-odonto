@@ -61,9 +61,20 @@ export default function MyPanelPage() {
         .from("patients")
         .select("id,name,cpf,phone,email,birth_date")
         .eq("user_id", user.id)
+        .eq("status", "active")
         .maybeSingle();
       if (cancelled) return;
-      if (!p) { setLoading(false); return; }
+      if (!p) {
+        setPatient(null);
+        setAppointments([]);
+        setRecord(null);
+        setEvolutions([]);
+        setPlans([]);
+        setSteps([]);
+        setAttachments([]);
+        setLoading(false);
+        return;
+      }
       setPatient(p);
 
       const [aRes, rRes, eRes, plRes, atRes] = await Promise.all([

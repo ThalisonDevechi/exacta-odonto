@@ -27,6 +27,7 @@ import { ReminderList } from "@/components/ReminderList";
 import { useClinicSettings } from "@/hooks/useClinicSettings";
 import { CONFIRMATION_STATUS_LABELS, type ConfirmationStatus } from "@/services/appointmentConfirmationService";
 import { canManageReminders, canViewReminders } from "@/lib/permissions";
+import { isValidWhatsAppPhone } from "@/services/whatsappService";
 import { Badge } from "@/components/ui/badge";
 
 type AppointmentStatus = Database["public"]["Enums"]["appointment_status"];
@@ -285,15 +286,19 @@ export default function AgendaPage() {
 
         <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between bg-surface p-4 rounded-xl shadow-sm">
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="icon" onClick={() => changeDate(viewMode === "calendar" ? -7 : -1)}><ChevronLeft className="h-4 w-4" /></Button>
-            <div className="relative">
-              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
-              <Button variant="outline" className="pointer-events-none gap-2 font-medium min-w-[140px] justify-center">
-                <CalendarIcon className="h-4 w-4 text-primary" />
-                {new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-              </Button>
+            <Button variant="outline" size="icon" aria-label="Período anterior" title="Período anterior" onClick={() => changeDate(viewMode === "calendar" ? -7 : -1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="relative flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-primary absolute left-3 pointer-events-none" />
+              <Input
+                aria-label="Selecionar data da agenda"
+                title="Selecionar data da agenda"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="h-9 w-[160px] bg-background pl-9"
+              />
             </div>
-            <Button variant="outline" size="icon" onClick={() => changeDate(viewMode === "calendar" ? 7 : 1)}><ChevronRight className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" aria-label="Próximo período" title="Próximo período" onClick={() => changeDate(viewMode === "calendar" ? 7 : 1)}><ChevronRight className="h-4 w-4" /></Button>
             <Button variant="secondary" size="sm" onClick={() => setSelectedDate(todayISO())}>Hoje</Button>
             
             <div className="h-6 w-px bg-border mx-2 hidden sm:block" />
@@ -514,12 +519,19 @@ export default function AgendaPage() {
                         <SelectContent>{Object.entries(APPOINTMENT_STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
                       </Select>
                       <Button variant="outline" size="sm" className="h-9 justify-start text-xs font-medium" onClick={() => setConfirmationTarget({ id: detailsTarget.id, patientName: detailsTarget.patients?.name ?? "", status: detailsTarget.status, initial: "confirmada" })}><CheckCircle2 className="h-3.5 w-3.5 mr-2 text-primary" /> Confirmação</Button>
-                      <Button variant="outline" size="sm" className="h-9 justify-start text-xs font-medium" onClick={() => setWhatsappTarget({ phone: (detailsTarget.patients as { phone?: string | null } | null)?.phone ?? null, patientName: detailsTarget.patients?.name ?? "", date: detailsTarget.date, time: detailsTarget.start_time?.slice(0, 5) ?? "", dentist: detailsTarget.dentists?.name ?? "", appointmentId: detailsTarget.id, patientId: detailsTarget.patient_id })}><MessageCircle className="h-3.5 w-3.5 mr-2 text-success" /> Enviar WhatsApp</Button>
-                      {canViewRem && <Button variant="outline" size="sm" className="h-9 justify-start text-xs font-medium" onClick={() => setReminderTarget({ id: detailsTarget.id, patientId: detailsTarget.patient_id, patientName: detailsTarget.patients?.name ?? "", phone: (detailsTarget.patients as { phone?: string | null } | null)?.phone ?? null, date: detailsTarget.date, time: detailsTarget.start_time?.slice(0, 5) ?? "", dentist: detailsTarget.dentists?.name ?? "" })}><Bell className="h-3.5 w-3.5 mr-2 text-warning" /> Lembretes Auto</Button>}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 justify-start text-xs font-medium"
+                        disabled={!isValidWhatsAppPhone(detailsTarget.patients?.phone)}
+                        title={isValidWhatsAppPhone(detailsTarget.patients?.phone) ? "Enviar WhatsApp" : "Paciente sem telefone válido"}
+                        onClick={() => setWhatsappTarget({ phone: detailsTarget.patients?.phone ?? null, patientName: detailsTarget.patients?.name ?? "", date: detailsTarget.date, time: detailsTarget.start_time?.slice(0, 5) ?? "", dentist: detailsTarget.dentists?.name ?? "", appointmentId: detailsTarget.id, patientId: detailsTarget.patient_id })}
+                      ><MessageCircle className="h-3.5 w-3.5 mr-2 text-success" /> Enviar WhatsApp</Button>
+                      {canViewRem && <Button variant="outline" size="sm" className="h-9 justify-start text-xs font-medium" onClick={() => setReminderTarget({ id: detailsTarget.id, patientId: detailsTarget.patient_id, patientName: detailsTarget.patients?.name ?? "", phone: detailsTarget.patients?.phone ?? null, date: detailsTarget.date, time: detailsTarget.start_time?.slice(0, 5) ?? "", dentist: detailsTarget.dentists?.name ?? "" })}><Bell className="h-3.5 w-3.5 mr-2 text-warning" /> Lembretes Auto</Button>}
                     </div>
                     <div className="flex gap-2 pt-2 border-t border-border mt-4">
                       <Button variant="secondary" className="flex-1" onClick={() => openEdit(detailsTarget)}><Edit className="h-4 w-4 mr-2" /> Editar Tudo</Button>
-                      {canDelete && <Button variant="destructive" size="icon" onClick={() => { setDetailsTarget(null); setDeleteId(detailsTarget.id); }} title="Excluir Definitivamente"><Trash2 className="h-4 w-4" /></Button>}
+                      {canDelete && <Button variant="destructive" size="icon" aria-label="Excluir definitivamente" onClick={() => { setDetailsTarget(null); setDeleteId(detailsTarget.id); }} title="Excluir Definitivamente"><Trash2 className="h-4 w-4" /></Button>}
                     </div>
                   </div>
                 )}

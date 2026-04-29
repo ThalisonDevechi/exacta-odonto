@@ -331,25 +331,25 @@ export default function BudgetsPage() {
                   <TableCell><Badge className={STATUS_BADGE[b.status]}>{BUDGET_STATUS_LABELS[b.status]}</Badge></TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setViewing(b)} title="Ver detalhes"><Eye className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDownloadPdf(b)} title="Baixar PDF"><Download className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => setViewing(b)} aria-label="Ver detalhes" title="Ver detalhes"><Eye className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDownloadPdf(b)} aria-label="Baixar PDF" title="Baixar PDF"><Download className="h-4 w-4" /></Button>
                       {b.status === "rascunho" && canChangeValues && (
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(b)} title="Editar">Editar</Button>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(b)} aria-label="Editar" title="Editar">Editar</Button>
                       )}
                       {b.status === "rascunho" && canCreate && (
-                        <Button size="sm" variant="ghost" onClick={() => handleIssue(b.id)} title="Emitir"><Send className="h-4 w-4 text-primary" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleIssue(b.id)} aria-label="Emitir" title="Emitir"><Send className="h-4 w-4 text-primary" /></Button>
                       )}
                       {b.status === "emitido" && canCreate && (
                         <>
-                          <Button size="sm" variant="ghost" onClick={() => handleAccept(b.id)} title="Aceitar"><CheckCircle2 className="h-4 w-4 text-success" /></Button>
-                          <Button size="sm" variant="ghost" onClick={() => handleReject(b.id)} title="Recusar"><XCircle className="h-4 w-4 text-destructive" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleAccept(b.id)} aria-label="Aceitar" title="Aceitar"><CheckCircle2 className="h-4 w-4 text-success" /></Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleReject(b.id)} aria-label="Recusar" title="Recusar"><XCircle className="h-4 w-4 text-destructive" /></Button>
                         </>
                       )}
                       {b.status !== "aceito" && b.status !== "cancelado" && canCreate && (
-                        <Button size="sm" variant="ghost" onClick={() => setCancelTarget(b.id)} title="Cancelar"><Ban className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => setCancelTarget(b.id)} aria-label="Cancelar" title="Cancelar"><Ban className="h-4 w-4" /></Button>
                       )}
                       {isAdmin && b.status !== "aceito" && (
-                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(b)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                        <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(b)} aria-label="Excluir" title="Excluir"><Trash2 className="h-4 w-4" /></Button>
                       )}
                     </div>
                   </TableCell>

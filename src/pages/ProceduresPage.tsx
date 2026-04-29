@@ -185,9 +185,9 @@ export default function ProceduresPage() {
                       <div className="flex justify-end gap-1">
                         {canManage && p.status !== "realizado" && p.status !== "cancelado" && (
                           <>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p.id)} title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => handleComplete(p.id)} title="Marcar como realizado"><CheckCircle2 className="h-3.5 w-3.5" /></Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setCancelId(p.id)} title="Cancelar"><XCircle className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p.id)} aria-label="Editar" title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => handleComplete(p.id)} aria-label="Marcar como realizado" title="Marcar como realizado"><CheckCircle2 className="h-3.5 w-3.5" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setCancelId(p.id)} aria-label="Cancelar" title="Cancelar"><XCircle className="h-3.5 w-3.5" /></Button>
                           </>
                         )}
                       </div>

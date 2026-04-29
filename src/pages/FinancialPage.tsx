@@ -7,6 +7,7 @@ import { useFinancialRecords, FINANCIAL_STATUS_LABELS, PAYMENT_METHOD_LABELS_V2,
 import { usePatients } from "@/hooks/usePatients";
 import { useReceipts } from "@/hooks/useReceipts";
 import { useClinicSettings } from "@/hooks/useClinicSettings";
+import { isValidWhatsAppPhone } from "@/services/whatsappService";
 import { useAuth } from "@/lib/auth-context";
 import { canCreateFinancialRecord, canEditFinancialOriginalValue, canCancelOrRefundFinancial, canReceivePayment, canIssueReceipt, canSendWhatsApp } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
@@ -296,25 +297,25 @@ export default function FinancialPage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         {canEditValue && r.status !== "pago" && r.status !== "cancelado" && r.status !== "estornado" && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r.id)} title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r.id)} aria-label="Editar" title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
                         )}
                         {canReceive && (r.status === "pendente" || r.status === "parcial" || r.status === "atrasado") && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => openPay(r.id)} title="Receber"><CreditCard className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => openPay(r.id)} aria-label="Receber" title="Receber"><CreditCard className="h-3.5 w-3.5" /></Button>
                         )}
                         {canCancelRefund && (r.status === "pendente" || r.status === "parcial" || r.status === "atrasado") && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setCancelOpen({ id: r.id, kind: "cancel" }); setReason(""); }} title="Cancelar"><XCircle className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setCancelOpen({ id: r.id, kind: "cancel" }); setReason(""); }} aria-label="Cancelar" title="Cancelar"><XCircle className="h-3.5 w-3.5" /></Button>
                         )}
                         {canCancelRefund && r.status === "pago" && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" onClick={() => { setCancelOpen({ id: r.id, kind: "refund" }); setReason(""); }} title="Estornar"><Undo2 className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" onClick={() => { setCancelOpen({ id: r.id, kind: "refund" }); setReason(""); }} aria-label="Estornar" title="Estornar"><Undo2 className="h-3.5 w-3.5" /></Button>
                         )}
                         {canReceipt && Number(r.paid_value) > 0 && r.status !== "cancelado" && r.status !== "estornado" && !receiptsByRecord.get(r.id)?.length && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleGenerateReceipt(r.id)} title="Gerar recibo"><Receipt className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleGenerateReceipt(r.id)} aria-label="Gerar recibo" title="Gerar recibo"><Receipt className="h-3.5 w-3.5" /></Button>
                         )}
                         {(receiptsByRecord.get(r.id)?.length ?? 0) > 0 && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadReceipt(r.id)} title="Baixar recibo PDF"><Download className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadReceipt(r.id)} aria-label="Baixar recibo PDF" title="Baixar recibo PDF"><Download className="h-3.5 w-3.5" /></Button>
                         )}
                         {canWhats && (r.status === "pendente" || r.status === "parcial" || r.status === "atrasado") && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => openWhats(r.id)} title="Enviar cobrança por WhatsApp"><MessageCircle className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success" disabled={!isValidWhatsAppPhone(r.patients?.phone)} onClick={() => openWhats(r.id)} aria-label="Enviar cobrança por WhatsApp" title={isValidWhatsAppPhone(r.patients?.phone) ? "Enviar cobrança por WhatsApp" : "Paciente sem telefone válido"}><MessageCircle className="h-3.5 w-3.5" /></Button>
                         )}
                       </div>
                     </TableCell>

@@ -213,15 +213,15 @@ export default function UsersPage() {
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)} title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(u)} aria-label="Editar" title="Editar"><Edit className="h-3.5 w-3.5" /></Button>
                   {u.status === "active" && u.id !== currentUser?.id && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" onClick={() => setConfirm({ id: u.id, action: "block", name: u.name })} title="Bloquear"><Ban className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-warning" onClick={() => setConfirm({ id: u.id, action: "block", name: u.name })} aria-label="Bloquear" title="Bloquear"><Ban className="h-3.5 w-3.5" /></Button>
                   )}
                   {u.status !== "active" && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => setConfirm({ id: u.id, action: "reactivate", name: u.name })} title="Reativar"><RotateCcw className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => setConfirm({ id: u.id, action: "reactivate", name: u.name })} aria-label="Reativar" title="Reativar"><RotateCcw className="h-3.5 w-3.5" /></Button>
                   )}
                   {u.id !== currentUser?.id && (
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setConfirm({ id: u.id, action: "delete", name: u.name })} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setConfirm({ id: u.id, action: "delete", name: u.name })} aria-label="Excluir" title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
                   )}
                 </div>
               </TableCell>

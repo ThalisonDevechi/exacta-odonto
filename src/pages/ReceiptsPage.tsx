@@ -210,8 +210,8 @@ export default function ReceiptsPage() {
                   <TableCell className="text-right font-medium">{fmt(Number(r.amount))}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => setViewing(r)} title="Ver"><Eye className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" onClick={() => handleDownload(r)} title="Baixar PDF"><Download className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => setViewing(r)} aria-label="Ver" title="Ver"><Eye className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleDownload(r)} aria-label="Baixar PDF" title="Baixar PDF"><Download className="h-4 w-4" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>

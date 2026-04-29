@@ -253,22 +253,22 @@ export default function PatientsPage() {
                     </TableCell>
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                       {/* Sempre pode ver a área clínica */}
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/pacientes/${p.id}`)} title="Área Clínica"><Eye className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/pacientes/${p.id}`)} aria-label="Área Clínica" title="Área Clínica"><Eye className="h-3.5 w-3.5" /></Button>
                       
                       {/* Paciente Ativo: Permite editar cadastro e inativar */}
                       {canCreate && p.status === "active" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)} title="Editar Cadastro"><Edit className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)} aria-label="Editar Cadastro" title="Editar Cadastro"><Edit className="h-3.5 w-3.5" /></Button>
                       )}
                       {canDelete && p.status === "active" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id)} title="Inativar"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id)} aria-label="Inativar" title="Inativar"><Trash2 className="h-3.5 w-3.5" /></Button>
                       )}
 
                       {/* Paciente Inativo/Arquivado: Apenas ver cadastro e reativar */}
                       {canCreate && p.status !== "active" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => openView(p)} title="Ver Cadastro (Leitura)"><User className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => openView(p)} aria-label="Ver Cadastro (Leitura)" title="Ver Cadastro (Leitura)"><User className="h-3.5 w-3.5" /></Button>
                       )}
                       {canDelete && p.status !== "active" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => setReactivateId(p.id)} title="Reativar Paciente"><RotateCcw className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => setReactivateId(p.id)} aria-label="Reativar Paciente" title="Reativar Paciente"><RotateCcw className="h-3.5 w-3.5" /></Button>
                       )}
                     </TableCell>
                   </TableRow>

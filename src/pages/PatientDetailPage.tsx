@@ -15,7 +15,8 @@ import { usePatient } from "@/hooks/usePatients";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useMedicalRecord } from "@/hooks/useMedicalRecord";
 import { useAuth } from "@/lib/auth-context";
-import { canEditRecord, getPermission, canSendWhatsApp, canViewCommunication } from "@/lib/permissions";
+import { canEditRecord, getPermission, canUsePatientWhatsAppHeader, canViewCommunication } from "@/lib/permissions";
+import { isValidWhatsAppPhone } from "@/services/whatsappService";
 import { calculateAge } from "@/lib/cpf";
 import { APPOINTMENT_STATUS_LABELS } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,9 @@ export default function PatientDetailPage() {
   const canViewPlans = user ? getPermission(user.role, "treatmentPlans").canView : false;
   const canViewBudgets = user && (user.role === "admin" || user.role === "dentist" || user.role === "receptionist" || user.role === "assistant");
   const canViewReceipts = user && (user.role === "admin" || user.role === "dentist" || user.role === "receptionist");
-  const canWhatsApp = user ? canSendWhatsApp(user.role) : false;
+  const hasValidWhatsAppPhone = isValidWhatsAppPhone(patient?.phone);
+  const canWhatsApp = user ? canUsePatientWhatsAppHeader(user.role) : false;
+  const canOpenWhatsApp = Boolean(canWhatsApp && isPatientActive && hasValidWhatsAppPhone);
   const canViewComm = user ? canViewCommunication(user.role) : false;
 
   const [recordForm, setRecordForm] = useState({
@@ -131,7 +134,7 @@ export default function PatientDetailPage() {
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/pacientes")}><ArrowLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" aria-label="Voltar para pacientes" title="Voltar para pacientes" onClick={() => navigate("/pacientes")}><ArrowLeft className="h-4 w-4" /></Button>
           <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">{patient.name}</h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
@@ -146,10 +149,16 @@ export default function PatientDetailPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setWhatsappOpen(true)}
+              onClick={() => {
+                if (!canOpenWhatsApp) {
+                  toast.error(!isPatientActive ? "Paciente inativo." : "Paciente sem telefone válido para WhatsApp.");
+                  return;
+                }
+                setWhatsappOpen(true);
+              }}
               className="gap-1.5"
-              disabled={!patient.phone}
-              title={patient.phone ? "Enviar WhatsApp" : "Paciente sem telefone"}
+              disabled={!canOpenWhatsApp}
+              title={!isPatientActive ? "Paciente inativo" : hasValidWhatsAppPhone ? "Enviar WhatsApp" : "Paciente sem telefone válido"}
             >
               <MessageCircle className="h-4 w-4 text-success" />
               WhatsApp
@@ -337,7 +346,7 @@ export default function PatientDetailPage() {
           {canViewComm && (
             <TabsContent value="comunicacao">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                <CommunicationTimeline patientId={patient.id} />
+                <CommunicationTimeline patientId={patient.id} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
           )}
