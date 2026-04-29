@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { usePatients } from "@/hooks/usePatients";
+import { useWhatsAppMessages } from "@/hooks/useWhatsAppMessage";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,7 @@ import { toast } from "sonner";
 
 export default function WhatsAppChatPage() {
   const navigate = useNavigate();
+  const { user } = useAuth(); // Pega o usuário logado para carimbar as mensagens
   const { patients, loading: loadingPatients } = usePatients();
   
   const [isConnected, setIsConnected] = useState<boolean | null>(null);
@@ -21,17 +24,26 @@ export default function WhatsAppChatPage() {
   const [messageText, setMessageText] = useState("");
   const [togglingBot, setTogglingBot] = useState(false);
 
-  // Verifica o status no Docker da Evolution API
+  const { messages, sendMessage } = useWhatsAppMessages(selectedPatientId);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Rola para a última mensagem automaticamente
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Checa a conexão com a Evolution API
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const res = await fetch("http://localhost:8080/instance/connectionState/exacta_bot", {
+        const API_URL = "https://pierce-clinic-combat-finance.trycloudflare.com"; 
+        const res = await fetch(`${API_URL}/instance/connectionState/exacta_bot`, {
           headers: { apikey: "exacta123" }
         });
         const data = await res.json();
         setIsConnected(data?.instance?.state === "open");
       } catch (error) {
-        setIsConnected(false); // Se o docker estiver desligado
+        setIsConnected(false);
       }
     };
     checkConnection();
@@ -54,10 +66,7 @@ export default function WhatsAppChatPage() {
         .eq("id", selectedPatient.id);
       
       if (error) throw error;
-      
-      // Correção do TypeScript aqui:
       (selectedPatient as any).bot_enabled = checked; 
-      
       toast.success(checked ? "IA ativada para este paciente." : "Bot pausado! Você assumiu a conversa.");
     } catch (e) {
       toast.error("Erro ao alterar IA.");
@@ -66,18 +75,22 @@ export default function WhatsAppChatPage() {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!messageText.trim()) return;
-    toast.success("Mensagem enviada (Simulação visual)");
-    setMessageText("");
-    // Aqui no futuro entra o POST para a Evolution API enviar a mensagem
+  const handleSendMessage = async () => {
+    if (!messageText.trim() || !user) return;
+    try {
+      // Envia a mensagem passando o ID e o Nome do profissional logado
+      await sendMessage(messageText, user.id, user.name);
+      setMessageText("");
+      // PRÓXIMO PASSO: Configurar o n8n para enviar a mensagem física pro zap
+    } catch (error) {
+      toast.error("Erro ao salvar mensagem.");
+    }
   };
 
   if (isConnected === null || loadingPatients) {
     return <AppLayout><Skeleton className="w-full h-[80vh] rounded-xl" /></AppLayout>;
   }
 
-  // TELA DE DESCONECTADO
   if (!isConnected) {
     return (
       <AppLayout>
@@ -98,12 +111,11 @@ export default function WhatsAppChatPage() {
     );
   }
 
-  // TELA DO CHAT (Conectado)
   return (
     <AppLayout>
       <Card className="flex h-[85vh] overflow-hidden border-border bg-surface">
         
-        {/* COLUNA ESQUERDA: LISTA DE PACIENTES */}
+        {/* COLUNA ESQUERDA */}
         <div className="w-80 border-r border-border flex flex-col bg-slate-50/50">
           <div className="p-4 border-b border-border bg-surface">
             <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
@@ -128,7 +140,6 @@ export default function WhatsAppChatPage() {
               >
                 <div className="flex justify-between items-start mb-1">
                   <h3 className="font-medium text-sm truncate pr-2">{patient.name}</h3>
-                  {/* Correção do TypeScript aqui: */}
                   {(patient as any).bot_enabled !== false && <Bot className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">{patient.phone || "Sem número"}</p>
@@ -137,7 +148,7 @@ export default function WhatsAppChatPage() {
           </div>
         </div>
 
-        {/* COLUNA DIREITA: CHAT E CONTROLES */}
+        {/* COLUNA DIREITA */}
         <div className="flex-1 flex flex-col bg-[#efeae2]">
           {selectedPatient ? (
             <>
@@ -153,7 +164,6 @@ export default function WhatsAppChatPage() {
                   </div>
                 </div>
                 
-                {/* O FAMOSO BOTÃO DE ASSUMIR O BOT FICA AQUI */}
                 <div className="flex items-center gap-3 bg-slate-50 px-3 py-1.5 rounded-lg border border-border">
                   <div className="flex flex-col items-end">
                     <span className="text-xs font-semibold text-foreground">Assistente IA</span>
@@ -170,7 +180,7 @@ export default function WhatsAppChatPage() {
                 </div>
               </div>
 
-              {/* ÁREA DE MENSAGENS */}
+              {/* LISTA DE MENSAGENS */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <div className="flex justify-center mb-6">
                   <span className="text-xs bg-white/60 px-3 py-1 rounded-md text-slate-500 shadow-sm backdrop-blur-sm">
@@ -178,15 +188,40 @@ export default function WhatsAppChatPage() {
                   </span>
                 </div>
                 
-                <div className="flex justify-start">
-                  <div className="bg-white p-3 rounded-lg rounded-tl-none max-w-md shadow-sm border border-slate-100">
-                    <p className="text-sm text-slate-800">Mensagens do paciente aparecerão aqui em breve.</p>
-                    <span className="text-[10px] text-slate-400 mt-2 block text-right">Agora</span>
-                  </div>
-                </div>
+                {messages.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground">Nenhuma mensagem ainda.</p>
+                ) : (
+                  messages.map((msg) => (
+                    <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`p-3 rounded-lg max-w-md shadow-sm border ${
+                        msg.direction === 'outbound' 
+                        ? 'bg-emerald-100 border-emerald-200 rounded-tr-none' 
+                        : 'bg-white border-slate-100 rounded-tl-none'
+                      }`}>
+                        
+                        {/* IDENTIFICADOR DO REMETENTE */}
+                        {msg.direction === 'outbound' && (
+                          <div className="flex items-center gap-1 mb-1 border-b border-emerald-200/50 pb-1">
+                            {msg.sender_type === 'bot' ? (
+                              <><Bot className="h-3 w-3 text-emerald-600" /> <span className="text-[10px] font-bold text-emerald-700 uppercase">Assistente IA</span></>
+                            ) : (
+                              <><User className="h-3 w-3 text-emerald-600" /> <span className="text-[10px] font-bold text-emerald-700 uppercase">{msg.sender_name || 'Equipe'}</span></>
+                            )}
+                          </div>
+                        )}
+                        
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap">{msg.content}</p>
+                        <span className="text-[10px] text-slate-500 mt-2 block text-right">
+                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
               </div>
 
-              {/* INPUT DE MENSAGEM */}
+              {/* INPUT DE ENVIO */}
               <div className="p-4 bg-surface border-t border-border flex items-center gap-2">
                 <Input 
                   placeholder={((selectedPatient as any).bot_enabled !== false) ? "O bot está ativo. Desative para assumir a conversa..." : "Digite sua mensagem..."}
@@ -206,7 +241,6 @@ export default function WhatsAppChatPage() {
               </div>
             </>
           ) : (
-            // TELA VAZIA (Nenhum paciente selecionado)
             <div className="flex-1 flex flex-col items-center justify-center opacity-50">
               <MessageCircle className="h-16 w-16 text-slate-400 mb-4" />
               <h3 className="text-lg font-medium text-slate-600">Nenhum chat selecionado</h3>
