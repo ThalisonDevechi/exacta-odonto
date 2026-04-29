@@ -1,0 +1,110 @@
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { QrCode, PowerOff, RefreshCw } from "lucide-react";
+
+export function WhatsAppBotTab() {
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const API_URL = "http://localhost:8080";
+  const API_KEY = "exacta123";
+  const INSTANCE_NAME = "exacta_bot"; // Nome fixo da conexão para a clínica
+
+  const generateQRCode = async () => {
+    setLoading(true);
+    try {
+      // Cria a instância na Evolution API
+      const response = await fetch(`${API_URL}/instance/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": API_KEY,
+        },
+        body: JSON.stringify({
+          instanceName: INSTANCE_NAME,
+          qrcode: true,
+          integration: "WHATSAPP-BAILEYS",
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.qrcode && data.qrcode.base64) {
+        setQrCode(data.qrcode.base64);
+        toast({
+          title: "QR Code Gerado",
+          description: "Abra o WhatsApp do celular da clínica e leia o código.",
+        });
+      } else if (data.instance?.status === "open") {
+        toast({
+          title: "Já conectado!",
+          description: "O WhatsApp da clínica já está pareado com o sistema.",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro de Conexão",
+        description: "Verifique se o Docker da Evolution API está rodando na porta 8080.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const disconnectBot = async () => {
+    setLoading(true);
+    try {
+      await fetch(`${API_URL}/instance/logout/${INSTANCE_NAME}`, {
+        method: "DELETE",
+        headers: { "apikey": API_KEY },
+      });
+      setQrCode(null);
+      toast({
+        title: "Desconectado",
+        description: "O bot foi desconectado do WhatsApp com sucesso.",
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Conexão com WhatsApp</CardTitle>
+        <CardDescription>
+          Conecte o celular da clínica para habilitar a inteligência artificial e envios automáticos em segundo plano.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!qrCode ? (
+          <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-slate-50">
+            <QrCode className="w-12 h-12 text-slate-400 mb-4" />
+            <p className="text-sm text-slate-500 mb-4 text-center max-w-sm">
+              Ao gerar o QR Code, a Evolution API será iniciada. Leia com o aplicativo do WhatsApp na seção "Aparelhos Conectados".
+            </p>
+            <Button onClick={generateQRCode} disabled={loading}>
+              {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
+              Gerar QR Code
+            </Button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center p-6 space-y-4">
+            <img src={qrCode} alt="WhatsApp QR Code" className="w-64 h-64 border rounded-lg shadow-sm" />
+            <p className="text-sm font-medium text-blue-600 animate-pulse">Aguardando leitura do celular...</p>
+            <Button variant="destructive" onClick={disconnectBot} disabled={loading}>
+              <PowerOff className="mr-2 h-4 w-4" />
+              Cancelar / Desconectar
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
