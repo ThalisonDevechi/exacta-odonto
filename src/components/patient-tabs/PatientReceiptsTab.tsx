@@ -23,9 +23,10 @@ function formatBR(d?: string | null) { if (!d) return "—"; const [y, m, day] =
 interface Props {
   patientId: string;
   patientName: string;
+  isPatientActive: boolean; // NOVO
 }
 
-export function PatientReceiptsTab({ patientId, patientName }: Props) {
+export function PatientReceiptsTab({ patientId, patientName, isPatientActive }: Props) {
   const { receipts, loading } = useReceipts({ patientId });
   const { settings } = useClinicSettings();
 
@@ -94,6 +95,7 @@ export function PatientReceiptsTab({ patientId, patientName }: Props) {
                   patientId={r.patient_id}
                   defaultSignerName={r.patients?.name ?? patientName}
                   defaultSignerDocument={r.patients?.cpf ?? undefined}
+                  canCollect={isPatientActive} // ATUALIZADO: Bloqueia nova coleta se inativo
                   compact
                 />
               </TableCell>
