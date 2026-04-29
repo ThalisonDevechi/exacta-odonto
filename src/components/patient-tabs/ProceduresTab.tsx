@@ -17,9 +17,15 @@ import { toast } from "sonner";
 
 const fmtMoney = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
-export function ProceduresTab({ patientId }: { patientId: string }) {
+interface Props {
+  patientId: string;
+  isPatientActive: boolean; // NOVO: Prop para bloquear a aba
+}
+
+export function ProceduresTab({ patientId, isPatientActive }: Props) {
   const { user } = useAuth();
-  const canEdit = user ? canManageProcedures(user.role) : false;
+  // ATUALIZADO: Cruza permissão do sistema com o status do paciente
+  const canEdit = user ? (canManageProcedures(user.role) && isPatientActive) : false;
   const { procedures, loading, addProcedure, completeProcedure, cancelProcedure } = useProcedures(patientId);
   const { dentists } = useDentists();
 
