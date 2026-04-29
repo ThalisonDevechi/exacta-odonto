@@ -55,7 +55,8 @@ export default function RecordsPage() {
             {filtered.map(p => (
               <button
                 key={p.id}
-                onClick={() => navigate(`/pacientes/${p.id}`)}
+                // CORREÇÃO: Força abrir direto na aba 'prontuario' usando a URL
+                onClick={() => navigate(`/pacientes/${p.id}?tab=prontuario`)}
                 className="w-full flex items-center gap-4 p-4 text-left hover:bg-muted/40 transition-colors"
               >
                 <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold shrink-0">
