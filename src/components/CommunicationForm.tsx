@@ -46,6 +46,11 @@ export function CommunicationForm({ open, onClose, patientId, appointmentId, onS
   }, [open]);
 
   const handleSave = async () => {
+    if (!message.trim()) {
+      toast.error("Mensagem/observação é obrigatória.");
+      return;
+    }
+
     setSaving(true);
     try {
       await create({

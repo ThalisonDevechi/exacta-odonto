@@ -156,17 +156,17 @@ export function FinancialTab({ patientId, isPatientActive }: Props) {
               </div>
               <StatusBadge status={r.status} label={FINANCIAL_STATUS_LABELS[r.status]} />
               {canPay && r.status !== "pago" && r.status !== "cancelado" && r.status !== "estornado" && (
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Registrar pagamento" onClick={() => { setPayOpen(r.id); setPayAmount(String(r.remaining_value)); }}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Registrar pagamento" title="Registrar pagamento" onClick={() => { setPayOpen(r.id); setPayAmount(String(r.remaining_value)); }}>
                   <CreditCard className="h-4 w-4 text-primary" />
                 </Button>
               )}
               {canCancel && r.status !== "pago" && r.status !== "cancelado" && r.status !== "estornado" && (
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Cancelar" onClick={() => onCancel(r.id)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Cancelar" title="Cancelar" onClick={() => onCancel(r.id)}>
                   <XCircle className="h-4 w-4" />
                 </Button>
               )}
               {canCancel && (r.status === "pago" || r.status === "parcial") && (
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Estornar" onClick={() => onRefund(r.id)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Estornar" title="Estornar" onClick={() => onRefund(r.id)}>
                   <RotateCcw className="h-4 w-4 text-warning" />
                 </Button>
               )}

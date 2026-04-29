@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Smile, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -25,17 +25,29 @@ interface Props {
   isPatientActive: boolean;
 }
 
-// ATUALIZADO: Removida a trava readOnly do botão, permitindo sempre o clique para visualização
-function ToothBox({ number, tooth, onClick }: { number: number; tooth?: DBTooth; onClick: () => void }) {
+function ToothBox({
+  number,
+  tooth,
+  onClick,
+  disabled = false,
+}: {
+  number: number;
+  tooth?: DBTooth;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   const status: ToothStatus = (tooth?.status as ToothStatus) ?? "integro";
   const color = TOOTH_STATUS_COLORS[status];
   const isAbsent = status === "ausente" || status === "extraido";
-  
+
   return (
     <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-0.5 p-0.5 rounded transition cursor-pointer hover:bg-muted"
-      title={`Dente ${number}: ${TOOTH_STATUS_LABELS[status]}`}
+      type="button"
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={`flex flex-col items-center gap-0.5 p-0.5 rounded transition ${disabled ? "cursor-not-allowed opacity-75" : "cursor-pointer hover:bg-muted"}`}
+      title={disabled ? `Dente ${number}: ${TOOTH_STATUS_LABELS[status]} — paciente inativo` : `Dente ${number}: ${TOOTH_STATUS_LABELS[status]}`}
     >
       <svg width="26" height="32" viewBox="0 0 26 32" className={isAbsent ? "opacity-40" : ""}>
         <rect x="2" y="2" width="22" height="28" rx="3" fill={status === "integro" ? "transparent" : color} stroke={color} strokeWidth="1.5" opacity={status === "integro" ? 1 : 0.65} />
@@ -55,8 +67,8 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
   const { user } = useAuth();
   const { data, loading, ensureOdontogram, changeDentitionType, upsertTooth, upsertFace } = useOdontogram(patientId, birthDate);
 
-  const canEdit = user && (user.role === "admin" || user.role === "dentist") && isPatientActive;
-  const canAddNotes = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant") && isPatientActive;
+  const canEdit = Boolean(user && (user.role === "admin" || user.role === "dentist") && isPatientActive);
+  const canAddNotes = Boolean(user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant") && isPatientActive);
 
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [editStatus, setEditStatus] = useState<ToothStatus>("integro");
@@ -102,6 +114,7 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
   const decLR = quadrants[7]?.slice().sort((a, b) => a - b) ?? [];
 
   const openTooth = (n: number) => {
+    if (!isPatientActive) return;
     const t = toothByNumber(n);
     setSelectedNumber(n);
     setEditStatus((t?.status as ToothStatus) ?? "integro");
@@ -121,7 +134,7 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
   };
 
   const handleSaveTooth = async () => {
-    if (selectedNumber === null) return;
+    if (!canEdit || selectedNumber === null) return;
     setSaving(true);
     try {
       const age = new Date().getFullYear() - new Date(birthDate).getFullYear();
@@ -130,7 +143,7 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
         if (!ok) { setSaving(false); return; }
       }
       await upsertTooth(selectedNumber, { status: editStatus, observation: editObs || null }, user?.id);
-      
+
       const { supabase } = await import("@/integrations/supabase/client");
       const { data: freshTooth } = await supabase
         .from("odontogram_teeth")
@@ -157,12 +170,14 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
   };
 
   const handleChangeDentition = async () => {
+    if (!canEdit) return;
     if (newDentition === dentition) { setDentitionDialog(false); return; }
     if (!dentitionReason.trim()) { toast.error("Informe a justificativa."); return; }
     try {
       await changeDentitionType(newDentition, dentitionReason.trim(), user?.id);
       toast.success("Tipo de dentição atualizado.");
-      setDentitionDialog(false); setDentitionReason("");
+      setDentitionDialog(false);
+      setDentitionReason("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro.");
     }
@@ -170,7 +185,15 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
 
   const renderRow = (nums: number[]) => (
     <div className="flex gap-0.5">
-      {nums.map(n => <ToothBox key={n} number={n} tooth={toothByNumber(n)} onClick={() => openTooth(n)} />)}
+      {nums.map(n => (
+        <ToothBox
+          key={n}
+          number={n}
+          tooth={toothByNumber(n)}
+          disabled={!isPatientActive}
+          onClick={() => openTooth(n)}
+        />
+      ))}
     </div>
   );
 
@@ -187,6 +210,7 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
                 <AlertTriangle className="h-3 w-3" /> Sugestão por idade: {DENTITION_LABELS[suggested]}
               </Badge>
             )}
+            {!isPatientActive && <Badge variant="outline">Somente leitura</Badge>}
           </div>
         </div>
         {canEdit && (
@@ -292,6 +316,42 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
               )}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dentitionDialog} onOpenChange={(open) => { if (!open) setDentitionDialog(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar tipo de dentição</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Tipo de dentição</Label>
+              <Select value={newDentition} onValueChange={(v) => setNewDentition(v as DentitionType)} disabled={!canEdit}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(DENTITION_LABELS) as [DentitionType, string][]).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="dentition-reason">Justificativa *</Label>
+              <Textarea
+                id="dentition-reason"
+                rows={3}
+                value={dentitionReason}
+                onChange={(e) => setDentitionReason(e.target.value)}
+                placeholder="Ex: correção por avaliação clínica, dentição mista observada, etc."
+                disabled={!canEdit}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDentitionDialog(false)}>Cancelar</Button>
+            <Button onClick={handleChangeDentition} disabled={!canEdit || !dentitionReason.trim() || newDentition === dentition}>Salvar alteração</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -101,14 +101,14 @@ export function AttachmentManager({ patientId, medicalRecordId, isPatientActive 
                   </p>
                 </div>
                 {a.released_to_patient && <Badge className="bg-success/10 text-success">Liberado</Badge>}
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Visualizar" onClick={() => openFile(a.file_path)}><Eye className="h-3.5 w-3.5" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" title="Baixar" onClick={() => downloadFile(a.file_path, a.file_name)}><Download className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Visualizar" title="Visualizar" onClick={() => openFile(a.file_path)}><Eye className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Baixar" title="Baixar" onClick={() => downloadFile(a.file_path, a.file_name)}><Download className="h-3.5 w-3.5" /></Button>
                 {canManage && (
                   <>
                     <div className="flex items-center gap-1 px-1">
                       <Switch checked={a.released_to_patient} onCheckedChange={v => setReleased(a.id, v).then(() => toast.success(v ? "Liberado." : "Bloqueado.")).catch(e => toast.error(e.message))} />
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Remover (lógico)" onClick={() => deactivate(a.id).then(() => toast.success("Anexo removido.")).catch(e => toast.error(e.message))}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Remover (lógico)" title="Remover (lógico)" onClick={() => deactivate(a.id).then(() => toast.success("Anexo removido.")).catch(e => toast.error(e.message))}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </>
                 )}
               </div>

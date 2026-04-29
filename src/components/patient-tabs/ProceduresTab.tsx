@@ -140,11 +140,11 @@ export function ProceduresTab({ patientId, isPatientActive }: Props) {
               <StatusBadge status={p.status} label={PROCEDURE_STATUS_LABELS[p.status]} />
               {canEdit && p.status !== "realizado" && p.status !== "cancelado" && (
                 <>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Marcar realizado"
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Marcar realizado" title="Marcar realizado"
                     onClick={() => completeProcedure(p.id).then(() => toast.success("Procedimento realizado.")).catch(e => toast.error(e.message))}>
                     <CheckCircle2 className="h-4 w-4 text-success" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Cancelar" onClick={() => onCancel(p.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Cancelar" title="Cancelar" onClick={() => onCancel(p.id)}>
                     <XCircle className="h-4 w-4" />
                   </Button>
                 </>

@@ -176,11 +176,11 @@ export function TreatmentPlansTab({ patientId, isPatientActive }: Props) {
                   <StatusBadge status={s.status} label={STEP_STATUS_LABELS[s.status]} />
                   {canEdit && s.status !== "concluida" && s.status !== "cancelada" && (
                     <>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" title="Concluir"
+                      <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Concluir" title="Concluir"
                         onClick={() => completeStep(s.id).then(() => toast.success("Etapa concluída.")).catch(e => toast.error(e.message))}>
                         <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Cancelar" onClick={() => onCancelStep(s.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" aria-label="Cancelar" title="Cancelar" onClick={() => onCancelStep(s.id)}>
                         <XCircle className="h-3.5 w-3.5" />
                       </Button>
                     </>

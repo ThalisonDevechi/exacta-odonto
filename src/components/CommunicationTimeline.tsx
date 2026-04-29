@@ -16,12 +16,13 @@ import { MessageSquare, Plus } from "lucide-react";
 
 interface Props {
   patientId: string;
+  isPatientActive?: boolean;
 }
 
-export function CommunicationTimeline({ patientId }: Props) {
+export function CommunicationTimeline({ patientId, isPatientActive = true }: Props) {
   const { logs, loading, refetch } = useCommunicationLogs({ patientId });
   const { user } = useAuth();
-  const canCreate = user ? canRegisterCommunication(user.role) : false;
+  const canCreate = user ? canRegisterCommunication(user.role) && isPatientActive : false;
   const [formOpen, setFormOpen] = useState(false);
 
   return (
@@ -37,6 +38,12 @@ export function CommunicationTimeline({ patientId }: Props) {
             </Button>
           )}
         </div>
+
+        {!isPatientActive && (
+          <p className="text-xs text-muted-foreground">
+            Paciente inativo: novas comunicações estão bloqueadas. O histórico permanece somente para consulta.
+          </p>
+        )}
 
         {loading && <p className="text-sm text-muted-foreground">Carregando...</p>}
         {!loading && !logs.length && (
@@ -69,7 +76,7 @@ export function CommunicationTimeline({ patientId }: Props) {
       </div>
 
       <CommunicationForm
-        open={formOpen}
+        open={formOpen && canCreate}
         onClose={() => setFormOpen(false)}
         patientId={patientId}
         onSaved={refetch}

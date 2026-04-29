@@ -47,6 +47,8 @@ export function AppSidebar() {
   return (
     <>
       <button
+        aria-label="Abrir menu"
+        title="Abrir menu"
         onClick={() => setMobileOpen(true)}
         className="fixed top-4 left-4 z-50 flex h-10 w-10 items-center justify-center rounded-lg bg-surface shadow-card lg:hidden"
       >
@@ -71,7 +73,7 @@ export function AppSidebar() {
               <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mt-1">Gestão Odontológica</p>
             </div>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="lg:hidden"><X className="h-5 w-5 text-muted-foreground" /></button>
+          <button aria-label="Fechar menu" title="Fechar menu" onClick={() => setMobileOpen(false)} className="lg:hidden"><X className="h-5 w-5 text-muted-foreground" /></button>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
@@ -98,6 +100,8 @@ export function AppSidebar() {
         <div className="border-t border-border p-4">
           <div className="flex items-center gap-3">
             <button
+              aria-label="Abrir perfil"
+              title="Abrir perfil"
               onClick={() => { navigate("/perfil"); setMobileOpen(false); }}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-semibold shrink-0 hover:bg-primary/20 transition-colors"
             >
@@ -107,7 +111,7 @@ export function AppSidebar() {
               <p className="text-sm font-medium text-foreground truncate">{user?.name}</p>
               <p className="text-xs text-muted-foreground truncate">{user ? ROLE_LABELS[user.role] : ""}</p>
             </button>
-            <button onClick={logout} className="text-muted-foreground hover:text-destructive transition-colors shrink-0" title="Sair"><LogOut className="h-4 w-4" /></button>
+            <button aria-label="Sair" onClick={logout} className="text-muted-foreground hover:text-destructive transition-colors shrink-0" title="Sair"><LogOut className="h-4 w-4" /></button>
           </div>
         </div>
       </aside>

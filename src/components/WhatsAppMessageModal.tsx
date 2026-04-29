@@ -69,11 +69,16 @@ export function WhatsAppMessageModal({
     if (t) setMessage(renderTemplate(t.body, vars));
   };
 
-  const phoneValid = isValidWhatsAppPhone(phoneState) || !phoneState;
-  const canSend = message.trim().length > 0;
+  const phoneValid = isValidWhatsAppPhone(phoneState);
+  const hasMessage = message.trim().length > 0;
+  const canSend = phoneValid && hasMessage;
 
   const handleSend = async () => {
-    if (!canSend) {
+    if (!phoneValid) {
+      toast.error("Informe um telefone válido antes de abrir o WhatsApp.");
+      return;
+    }
+    if (!hasMessage) {
       toast.error("Mensagem não pode ficar vazia.");
       return;
     }

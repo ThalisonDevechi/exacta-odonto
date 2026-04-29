@@ -3,6 +3,7 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useClinicSettings } from "@/hooks/useClinicSettings";
 import { useAuth } from "@/lib/auth-context";
 import { canSendWhatsApp } from "@/lib/permissions";
+import { isValidWhatsAppPhone } from "@/services/whatsappService";
 import { BUDGET_STATUS_LABELS, type BudgetStatus, type BudgetWithItems } from "@/services/budgetService";
 import { generateBudgetPdf, downloadPdf } from "@/lib/pdf-documents";
 import { logAudit } from "@/lib/audit";
@@ -48,6 +49,8 @@ export function PatientBudgetsTab({ patientId, patientName, patientPhone, isPati
   // ATUALIZADO: Cruza permissões do user com a ativação do paciente
   const canManage = (isAdmin || isDentist) && isPatientActive;
   const canWhatsApp = user ? canSendWhatsApp(user.role) : false;
+  const hasValidWhatsAppPhone = isValidWhatsAppPhone(patientPhone);
+  const canOpenWhatsApp = Boolean(canWhatsApp && isPatientActive && hasValidWhatsAppPhone);
 
   const [viewing, setViewing] = useState<BudgetWithItems | null>(null);
   const [cancelTarget, setCancelTarget] = useState<string | null>(null);
@@ -150,24 +153,31 @@ export function PatientBudgetsTab({ patientId, patientName, patientPhone, isPati
                 <TableCell><Badge className={STATUS_BADGE[b.status]}>{BUDGET_STATUS_LABELS[b.status]}</Badge></TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => setViewing(b)} title="Ver detalhes"><Eye className="h-4 w-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleDownload(b)} title="Baixar PDF"><Download className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => setViewing(b)} aria-label="Ver detalhes" title="Ver detalhes"><Eye className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleDownload(b)} aria-label="Baixar PDF" title="Baixar PDF"><Download className="h-4 w-4" /></Button>
                     {canWhatsApp && (
-                      <Button size="sm" variant="ghost" onClick={() => setWhatsappBudget(b)} title="Enviar WhatsApp">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setWhatsappBudget(b)}
+                        disabled={!canOpenWhatsApp}
+                        aria-label="Enviar orçamento por WhatsApp"
+                        title={!isPatientActive ? "Paciente inativo" : hasValidWhatsAppPhone ? "Enviar WhatsApp" : "Paciente sem telefone válido"}
+                      >
                         <MessageCircle className="h-4 w-4 text-success" />
                       </Button>
                     )}
                     {canManage && b.status === "rascunho" && (
-                      <Button size="sm" variant="ghost" onClick={() => handleIssue(b.id)} title="Emitir"><Send className="h-4 w-4 text-primary" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => handleIssue(b.id)} aria-label="Emitir" title="Emitir"><Send className="h-4 w-4 text-primary" /></Button>
                     )}
                     {canManage && b.status === "emitido" && (
                       <>
-                        <Button size="sm" variant="ghost" onClick={() => handleAccept(b.id)} title="Aceitar"><CheckCircle2 className="h-4 w-4 text-success" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleReject(b.id)} title="Recusar"><XCircle className="h-4 w-4 text-destructive" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleAccept(b.id)} aria-label="Aceitar" title="Aceitar"><CheckCircle2 className="h-4 w-4 text-success" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleReject(b.id)} aria-label="Recusar" title="Recusar"><XCircle className="h-4 w-4 text-destructive" /></Button>
                       </>
                     )}
                     {canManage && b.status !== "aceito" && b.status !== "cancelado" && (
-                      <Button size="sm" variant="ghost" onClick={() => setCancelTarget(b.id)} title="Cancelar"><Ban className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" onClick={() => setCancelTarget(b.id)} aria-label="Cancelar" title="Cancelar"><Ban className="h-4 w-4" /></Button>
                     )}
                   </div>
                 </TableCell>
@@ -255,6 +265,7 @@ export function PatientBudgetsTab({ patientId, patientName, patientPhone, isPati
           context="patient_detail.budget"
           entity="treatment_budgets"
           entityId={whatsappBudget.id}
+          budgetId={whatsappBudget.id}
           title="Enviar orçamento por WhatsApp"
         />
       )}
