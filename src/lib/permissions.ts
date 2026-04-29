@@ -184,6 +184,14 @@ export function canSendWhatsApp(role: UserRole): boolean {
   return role === "admin" || role === "receptionist" || role === "dentist" || role === "assistant";
 }
 
+// Botão principal de WhatsApp no topo do detalhe do paciente.
+// A recepção continua podendo usar WhatsApp em fluxos operacionais específicos
+// (agenda/lembretes), mas o atalho clínico do cabeçalho fica limitado aos perfis
+// que operam diretamente o atendimento do paciente.
+export function canUsePatientWhatsAppHeader(role: UserRole): boolean {
+  return role === "admin" || role === "dentist" || role === "assistant";
+}
+
 // Phase 5 part 2 — Reminders & Communication
 export function canManageReminders(role: UserRole): boolean {
   return role === "admin" || role === "receptionist" || role === "dentist";

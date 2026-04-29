@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { UserRole } from "./types";
@@ -48,33 +48,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const loadSeq = useRef(0);
+
+  const applySession = useCallback(async (newSession: Session | null) => {
+    const seq = ++loadSeq.current;
+    setSession(newSession);
+    setUser(null);
+
+    if (!newSession?.user) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const profile = await loadProfile(newSession.user);
+      if (seq !== loadSeq.current) return;
+      setUser(profile);
+    } catch (e) {
+      if (seq !== loadSeq.current) return;
+      console.error("Erro ao carregar perfil do usuário", e);
+      setUser(null);
+    } finally {
+      if (seq === loadSeq.current) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // 1. Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      if (newSession?.user) {
-        // Defer profile fetch to avoid deadlock
-        setTimeout(() => {
-          loadProfile(newSession.user).then(setUser);
-        }, 0);
-      } else {
-        setUser(null);
-      }
+      void applySession(newSession);
     });
 
-    // 2. THEN check existing session
-    supabase.auth.getSession().then(async ({ data: { session: existing } }) => {
-      setSession(existing);
-      if (existing?.user) {
-        const profile = await loadProfile(existing.user);
-        setUser(profile);
-      }
-      setLoading(false);
+    supabase.auth.getSession().then(({ data: { session: existing } }) => {
+      void applySession(existing);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [applySession]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -117,9 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch { /* ignore */ }
+    ++loadSeq.current;
+    setLoading(true);
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    setLoading(false);
   }, []);
 
   const updateSession = useCallback((data: Partial<AppUser>) => {
