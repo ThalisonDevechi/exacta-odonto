@@ -1,21 +1,35 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp } from "@/services/whatsappService";
-import { communicationLogService } from "@/services/communicationLogService";
+import { communicationLogService, type CommunicationType } from "@/services/communicationLogService";
 
 export type WhatsAppMessage = {
   id: string;
   patient_id: string;
-  direction: 'inbound' | 'outbound';
+  direction: "inbound" | "outbound";
   content: string;
-  sender_type?: 'bot' | 'user';
+  sender_type?: "bot" | "user";
   sender_id?: string;
   sender_name?: string;
   created_at: string;
 };
 
+type ManualWhatsAppParams = {
+  phone: string | null | undefined;
+  message: string;
+  context?: string;
+  entity?: string;
+  entityId?: string | null;
+  patientId?: string | null;
+  appointmentId?: string | null;
+  financialRecordId?: string | null;
+  budgetId?: string | null;
+  receiptId?: string | null;
+  communicationType?: CommunicationType;
+};
+
 // ==========================================
-// 1. O HOOK NOVO (Para o Chat em Tempo Real)
+// 1. Chat em tempo real
 // ==========================================
 export function useWhatsAppMessages(patientId: string | null) {
   const [messages, setMessages] = useState<WhatsAppMessage[]>([]);
@@ -34,7 +48,7 @@ export function useWhatsAppMessages(patientId: string | null) {
         .select("*")
         .eq("patient_id", patientId)
         .order("created_at", { ascending: true });
-        
+
       if (data) setMessages(data as WhatsAppMessage[]);
       setLoading(false);
     };
@@ -48,7 +62,7 @@ export function useWhatsAppMessages(patientId: string | null) {
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `patient_id=eq.${patientId}` },
         (payload: any) => {
           setMessages((prev) => [...prev, payload.new as WhatsAppMessage]);
-        }
+        },
       )
       .subscribe();
 
@@ -65,7 +79,7 @@ export function useWhatsAppMessages(patientId: string | null) {
       content,
       sender_id: senderId,
       sender_name: senderName,
-      sender_type: "user" 
+      sender_type: "user",
     });
     if (error) throw error;
   };
@@ -74,28 +88,28 @@ export function useWhatsAppMessages(patientId: string | null) {
 }
 
 // ==========================================
-// 2. O HOOK ANTIGO RESTAURADO (Para os Modais de Lembrete)
+// 2. Envio manual pelos modais
 // ==========================================
 export function useWhatsAppMessage() {
-  const send = async (params: any) => {
-    // Abre a aba do WhatsApp Web/App
+  const send = async (params: ManualWhatsAppParams) => {
     openWhatsApp(params.phone, params.message);
-    
-    // Salva no histórico de comunicação do paciente
-    try {
-      await communicationLogService.create({
-        patient_id: params.patientId || null,
-        appointment_id: params.appointmentId || null,
-        channel: "whatsapp",
-        direction: "enviada",
-        status: "enviada_manual",
-        type: params.communicationType || "atendimento_manual",
-        content: params.message,
-        notes: params.context ? `Enviado via: ${params.context}` : null
-      });
-    } catch (err) {
-      console.error("Erro ao salvar log de comunicação", err);
-    }
+
+    // Só grava no histórico quando há paciente. Sem patient_id a tabela rejeita a inserção,
+    // então evitamos erro 400/console em fluxos sem contexto clínico.
+    if (!params.patientId) return;
+
+    await communicationLogService.create({
+      patient_id: params.patientId,
+      appointment_id: params.appointmentId ?? null,
+      financial_record_id: params.financialRecordId ?? null,
+      budget_id: params.budgetId ?? null,
+      receipt_id: params.receiptId ?? null,
+      channel: "whatsapp",
+      direction: "enviada",
+      status: "enviada_manual",
+      type: params.communicationType ?? "atendimento_manual",
+      message: params.message,
+    });
   };
 
   return { send };

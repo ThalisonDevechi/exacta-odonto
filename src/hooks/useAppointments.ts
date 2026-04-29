@@ -7,7 +7,7 @@ export type AppointmentInsert = Database["public"]["Tables"]["appointments"]["In
 export type AppointmentUpdate = Database["public"]["Tables"]["appointments"]["Update"];
 
 export type AppointmentWithRelations = DBAppointment & {
-  patients: { id: string; name: string } | null;
+  patients: { id: string; name: string; phone: string | null } | null;
   dentists: { id: string; name: string } | null;
 };
 
@@ -20,7 +20,7 @@ export function useAppointments() {
     setLoading(true);
     const { data, error } = await supabase
       .from("appointments")
-      .select("*, patients(id,name), dentists(id,name)")
+      .select("*, patients(id,name,phone), dentists(id,name)")
       .order("date", { ascending: true })
       .order("start_time", { ascending: true });
       
