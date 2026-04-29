@@ -60,9 +60,9 @@ export default function WhatsAppChatPage() {
     if (!selectedPatient) return;
     setTogglingBot(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("patients")
-        .update({ bot_enabled: checked } as any)
+        .update({ bot_enabled: checked })
         .eq("id", selectedPatient.id);
       
       if (error) throw error;
