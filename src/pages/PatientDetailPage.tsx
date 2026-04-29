@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -38,6 +38,10 @@ function formatDateBR(iso: string) {
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  // CORREÇÃO: Pegar os params da url para definir a aba aberta
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "cadastro";
+
   const { user } = useAuth();
   const { patient, loading } = usePatient(id);
   const { appointments } = useAppointments();
@@ -45,10 +49,9 @@ export default function PatientDetailPage() {
   const { settings: clinic } = useClinicSettings();
   const [whatsappOpen, setWhatsappOpen] = useState(false);
 
-  // NOVO: Verifica se o paciente está ativo
+  // Mantemos isPatientActive caso você já use as verificações do código anterior
   const isPatientActive = patient?.status === "active";
 
-  // ATUALIZADO: Só pode editar o prontuário se tiver permissão E o paciente estiver ativo
   const canEditChart = user ? (canEditRecord(user.role) && isPatientActive) : false;
   const canViewClinical = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant");
   const canViewFinancial = user ? getPermission(user.role, "financial").canView : false;
@@ -65,7 +68,11 @@ export default function PatientDetailPage() {
   });
   const [savingRecord, setSavingRecord] = useState(false);
 
-  // Auto-create medical record when entering clinical area
+  // Trocar aba e atualizar URL
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value }, { replace: true });
+  };
+
   useEffect(() => {
     if (id && !record && canEditChart) {
       ensureRecord(user?.id).catch(() => { /* ignore */ });
@@ -156,7 +163,7 @@ export default function PatientDetailPage() {
           </div>
         )}
 
-        <Tabs defaultValue="cadastro" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="cadastro"><User className="h-3.5 w-3.5 mr-1.5" />Cadastro</TabsTrigger>
             {canViewClinical && <TabsTrigger value="prontuario"><FileText className="h-3.5 w-3.5 mr-1.5" />Prontuário</TabsTrigger>}
@@ -255,7 +262,6 @@ export default function PatientDetailPage() {
           {canViewClinical && (
             <TabsContent value="evolucoes">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                {/* Nota: Lembre-se de aceitar a prop isPatientActive no ClinicalEvolutionsList caso ainda não possua */}
                 <ClinicalEvolutionsList patientId={patient.id} medicalRecordId={record?.id ?? null} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
@@ -263,7 +269,6 @@ export default function PatientDetailPage() {
 
           <TabsContent value="odontograma">
             <div className="rounded-xl bg-surface shadow-card p-5">
-              {/* Nota: Lembre-se de aceitar a prop isPatientActive (ou readOnly) no PersistentOdontogram caso queira bloqueá-lo também */}
               <PersistentOdontogram patientId={patient.id} patientName={patient.name} birthDate={patient.birth_date} isPatientActive={isPatientActive} />
             </div>
           </TabsContent>
@@ -324,7 +329,6 @@ export default function PatientDetailPage() {
           {canViewReceipts && (
             <TabsContent value="recibos">
               <div className="rounded-xl bg-surface shadow-card p-5">
-                {/* Nota: Você pode aplicar a mesma lógica no ReceiptTab se quiser */}
                 <PatientReceiptsTab patientId={patient.id} patientName={patient.name} isPatientActive={isPatientActive} />
               </div>
             </TabsContent>
