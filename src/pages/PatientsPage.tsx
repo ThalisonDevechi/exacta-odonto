@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Users, Search, Eye, Edit, Trash2, Loader2 } from "lucide-react";
+import { Users, Search, Eye, Edit, Trash2, Loader2, User, RotateCcw } from "lucide-react";
 
 type FormState = {
   name: string; cpf: string; rg: string; birth_date: string; gender: "M" | "F" | "O" | "";
@@ -42,11 +42,15 @@ export default function PatientsPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  
   const [formOpen, setFormOpen] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false); // NOVO: Controla se o form é apenas leitura
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [reactivateId, setReactivateId] = useState<string | null>(null); // NOVO: Para reativar pacientes
 
   const canCreate = user && (user.role === "admin" || user.role === "receptionist" || user.role === "dentist");
   const canDelete = user?.role === "admin";
@@ -60,9 +64,21 @@ export default function PatientsPage() {
     return matchStatus && matchSearch;
   }), [patients, statusFilter, search]);
 
-  const openNew = () => { setEditingId(null); setForm(emptyForm); setFormOpen(true); };
+  const openNew = () => { setEditingId(null); setViewOnly(false); setForm(emptyForm); setFormOpen(true); };
+  
   const openEdit = (p: DBPatient) => {
+    setViewOnly(false);
     setEditingId(p.id);
+    populateForm(p);
+  };
+
+  const openView = (p: DBPatient) => {
+    setViewOnly(true);
+    setEditingId(p.id);
+    populateForm(p);
+  };
+
+  const populateForm = (p: DBPatient) => {
     setForm({
       name: p.name, cpf: p.cpf ?? "", rg: p.rg ?? "", birth_date: p.birth_date,
       gender: (p.gender ?? "") as FormState["gender"],
@@ -78,6 +94,7 @@ export default function PatientsPage() {
   };
 
   const handleSave = async () => {
+    if (viewOnly) return;
     if (!form.name.trim()) { toast.error("Nome completo é obrigatório."); return; }
     if (!form.birth_date) { toast.error("Data de nascimento é obrigatória."); return; }
     if (form.cpf.trim() && !isValidCPF(form.cpf)) { toast.error("CPF inválido."); return; }
@@ -147,6 +164,29 @@ export default function PatientsPage() {
     setDeleteId(null);
   };
 
+  const handleReactivate = async () => {
+    if (!reactivateId) return;
+    const p = patients.find(x => x.id === reactivateId);
+    if (!p) return;
+
+    try {
+      const payload: PatientInsert = {
+        name: p.name, cpf: p.cpf, rg: p.rg, birth_date: p.birth_date, gender: p.gender,
+        phone: p.phone, email: p.email, address: p.address, address_number: p.address_number,
+        neighborhood: p.neighborhood, city: p.city, state: p.state, zip_code: p.zip_code,
+        guardian_name: p.guardian_name, guardian_cpf: p.guardian_cpf, guardian_phone: p.guardian_phone,
+        guardian_relationship: p.guardian_relationship, notes: p.notes,
+        status: "active", // Força o status de volta para ativo
+      };
+      await updatePatient(reactivateId, payload);
+      await logAudit("patient.reactivate", "patient", reactivateId);
+      toast.success("Paciente reativado com sucesso.");
+    } catch (e) {
+      toast.error("Erro ao reativar o paciente.");
+    }
+    setReactivateId(null);
+  };
+
   const activeCount = patients.filter(p => p.status === "active").length;
 
   return (
@@ -212,9 +252,24 @@ export default function PatientsPage() {
                       <StatusBadge status={p.status === "active" ? "active" : "inactive"} label={p.status === "active" ? "Ativo" : p.status === "archived" ? "Arquivado" : "Inativo"} />
                     </TableCell>
                     <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/pacientes/${p.id}`)} title="Visualizar"><Eye className="h-3.5 w-3.5" /></Button>
-                      {canCreate && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)} title="Editar"><Edit className="h-3.5 w-3.5" /></Button>}
-                      {canDelete && p.status === "active" && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id)} title="Inativar"><Trash2 className="h-3.5 w-3.5" /></Button>}
+                      {/* Sempre pode ver a área clínica */}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(`/pacientes/${p.id}`)} title="Área Clínica"><Eye className="h-3.5 w-3.5" /></Button>
+                      
+                      {/* Paciente Ativo: Permite editar cadastro e inativar */}
+                      {canCreate && p.status === "active" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)} title="Editar Cadastro"><Edit className="h-3.5 w-3.5" /></Button>
+                      )}
+                      {canDelete && p.status === "active" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id)} title="Inativar"><Trash2 className="h-3.5 w-3.5" /></Button>
+                      )}
+
+                      {/* Paciente Inativo/Arquivado: Apenas ver cadastro e reativar */}
+                      {canCreate && p.status !== "active" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={() => openView(p)} title="Ver Cadastro (Leitura)"><User className="h-3.5 w-3.5" /></Button>
+                      )}
+                      {canDelete && p.status !== "active" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => setReactivateId(p.id)} title="Reativar Paciente"><RotateCcw className="h-3.5 w-3.5" /></Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -225,16 +280,16 @@ export default function PatientsPage() {
 
         <Dialog open={formOpen} onOpenChange={setFormOpen}>
           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>{editingId ? "Editar Paciente" : "Novo Paciente"}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{viewOnly ? "Dados do Paciente" : editingId ? "Editar Paciente" : "Novo Paciente"}</DialogTitle></DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Dados pessoais</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2 sm:col-span-2"><Label>Nome completo *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-                <div className="space-y-2"><Label>CPF</Label><Input value={form.cpf} onChange={e => setForm({ ...form, cpf: formatCPF(e.target.value) })} placeholder="000.000.000-00" maxLength={14} /></div>
-                <div className="space-y-2"><Label>RG</Label><Input value={form.rg} onChange={e => setForm({ ...form, rg: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Data de nascimento *</Label><Input type="date" value={form.birth_date} onChange={e => setForm({ ...form, birth_date: e.target.value })} /></div>
+                <div className="space-y-2 sm:col-span-2"><Label>Nome completo *</Label><Input disabled={viewOnly} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                <div className="space-y-2"><Label>CPF</Label><Input disabled={viewOnly} value={form.cpf} onChange={e => setForm({ ...form, cpf: formatCPF(e.target.value) })} placeholder="000.000.000-00" maxLength={14} /></div>
+                <div className="space-y-2"><Label>RG</Label><Input disabled={viewOnly} value={form.rg} onChange={e => setForm({ ...form, rg: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Data de nascimento *</Label><Input disabled={viewOnly} type="date" value={form.birth_date} onChange={e => setForm({ ...form, birth_date: e.target.value })} /></div>
                 <div className="space-y-2"><Label>Sexo</Label>
-                  <Select value={form.gender} onValueChange={v => setForm({ ...form, gender: v as FormState["gender"] })}>
+                  <Select disabled={viewOnly} value={form.gender} onValueChange={v => setForm({ ...form, gender: v as FormState["gender"] })}>
                     <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="M">Masculino</SelectItem>
@@ -243,18 +298,18 @@ export default function PatientsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2"><Label>Telefone</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="(11) 90000-0000" /></div>
-                <div className="space-y-2"><Label>E-mail</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Telefone</Label><Input disabled={viewOnly} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="(11) 90000-0000" /></div>
+                <div className="space-y-2"><Label>E-mail</Label><Input disabled={viewOnly} type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
               </div>
 
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Endereço</div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2"><Label>CEP</Label><Input value={form.zip_code} onChange={e => setForm({ ...form, zip_code: e.target.value })} /></div>
-                <div className="space-y-2 sm:col-span-2"><Label>Logradouro</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Número</Label><Input value={form.address_number} onChange={e => setForm({ ...form, address_number: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Bairro</Label><Input value={form.neighborhood} onChange={e => setForm({ ...form, neighborhood: e.target.value })} /></div>
-                <div className="space-y-2"><Label>Cidade</Label><Input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
-                <div className="space-y-2"><Label>UF</Label><Input value={form.state} onChange={e => setForm({ ...form, state: e.target.value.toUpperCase().slice(0, 2) })} maxLength={2} /></div>
+                <div className="space-y-2"><Label>CEP</Label><Input disabled={viewOnly} value={form.zip_code} onChange={e => setForm({ ...form, zip_code: e.target.value })} /></div>
+                <div className="space-y-2 sm:col-span-2"><Label>Logradouro</Label><Input disabled={viewOnly} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Número</Label><Input disabled={viewOnly} value={form.address_number} onChange={e => setForm({ ...form, address_number: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Bairro</Label><Input disabled={viewOnly} value={form.neighborhood} onChange={e => setForm({ ...form, neighborhood: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Cidade</Label><Input disabled={viewOnly} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} /></div>
+                <div className="space-y-2"><Label>UF</Label><Input disabled={viewOnly} value={form.state} onChange={e => setForm({ ...form, state: e.target.value.toUpperCase().slice(0, 2) })} maxLength={2} /></div>
               </div>
 
               {form.birth_date && calculateAge(form.birth_date) < 18 && (
@@ -263,21 +318,25 @@ export default function PatientsPage() {
                     Responsável (paciente menor de 18 anos)
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Nome do responsável *</Label><Input value={form.guardian_name} onChange={e => setForm({ ...form, guardian_name: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Telefone do responsável *</Label><Input value={form.guardian_phone} onChange={e => setForm({ ...form, guardian_phone: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>CPF do responsável</Label><Input value={form.guardian_cpf} onChange={e => setForm({ ...form, guardian_cpf: formatCPF(e.target.value) })} maxLength={14} /></div>
-                    <div className="space-y-2"><Label>Grau de parentesco</Label><Input value={form.guardian_relationship} onChange={e => setForm({ ...form, guardian_relationship: e.target.value })} placeholder="Mãe, Pai, Tutor..." /></div>
+                    <div className="space-y-2"><Label>Nome do responsável *</Label><Input disabled={viewOnly} value={form.guardian_name} onChange={e => setForm({ ...form, guardian_name: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Telefone do responsável *</Label><Input disabled={viewOnly} value={form.guardian_phone} onChange={e => setForm({ ...form, guardian_phone: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>CPF do responsável</Label><Input disabled={viewOnly} value={form.guardian_cpf} onChange={e => setForm({ ...form, guardian_cpf: formatCPF(e.target.value) })} maxLength={14} /></div>
+                    <div className="space-y-2"><Label>Grau de parentesco</Label><Input disabled={viewOnly} value={form.guardian_relationship} onChange={e => setForm({ ...form, guardian_relationship: e.target.value })} placeholder="Mãe, Pai, Tutor..." /></div>
                   </div>
                 </>
               )}
 
-              <div className="space-y-2 pt-2"><Label>Observações</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
+              <div className="space-y-2 pt-2"><Label>Observações</Label><Textarea disabled={viewOnly} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} /></div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setFormOpen(false)} disabled={saving}>Cancelar</Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...</> : (editingId ? "Salvar alterações" : "Cadastrar")}
+                <Button variant="outline" onClick={() => setFormOpen(false)}>
+                  {viewOnly ? "Fechar" : "Cancelar"}
                 </Button>
+                {!viewOnly && (
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...</> : (editingId ? "Salvar alterações" : "Cadastrar")}
+                  </Button>
+                )}
               </div>
             </div>
           </DialogContent>
@@ -291,6 +350,15 @@ export default function PatientsPage() {
           confirmLabel="Inativar"
           onConfirm={handleInactivate}
           destructive
+        />
+
+        <ConfirmDialog
+          open={!!reactivateId}
+          onOpenChange={() => setReactivateId(null)}
+          title="Reativar paciente"
+          description="Este paciente voltará a constar como Ativo em sua clínica, permitindo novas edições de prontuário, orçamentos e procedimentos."
+          confirmLabel="Confirmar Reativação"
+          onConfirm={handleReactivate}
         />
       </div>
     </AppLayout>
