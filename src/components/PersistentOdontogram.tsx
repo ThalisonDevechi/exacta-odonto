@@ -22,6 +22,7 @@ interface Props {
   patientId: string;
   patientName: string;
   birthDate: string;
+  isPatientActive: boolean; // NOVO
 }
 
 function ToothBox({ number, tooth, onClick, readOnly }: { number: number; tooth?: DBTooth; onClick: () => void; readOnly: boolean }) {
@@ -48,12 +49,13 @@ function ToothBox({ number, tooth, onClick, readOnly }: { number: number; tooth?
   );
 }
 
-export function PersistentOdontogram({ patientId, patientName, birthDate }: Props) {
+export function PersistentOdontogram({ patientId, patientName, birthDate, isPatientActive }: Props) {
   const { user } = useAuth();
   const { data, loading, ensureOdontogram, changeDentitionType, upsertTooth, upsertFace } = useOdontogram(patientId, birthDate);
 
-  const canEdit = user && (user.role === "admin" || user.role === "dentist");
-  const canAddNotes = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant");
+  // ATUALIZADO: O paciente deve estar ativo para editar o odontograma ou adicionar observações
+  const canEdit = user && (user.role === "admin" || user.role === "dentist") && isPatientActive;
+  const canAddNotes = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant") && isPatientActive;
 
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [editStatus, setEditStatus] = useState<ToothStatus>("integro");
