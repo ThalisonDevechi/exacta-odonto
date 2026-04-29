@@ -227,6 +227,12 @@ export default function AgendaPage() {
   };
 
   const handleStatusChange = async (id: string, status: AppointmentStatus) => {
+    // CORREÇÃO: Não deixar alterar um status que já estava cancelado
+    if (detailsTarget?.status === "cancelled" && status !== "cancelled") {
+      toast.error("Não é possível alterar o status de uma consulta que já foi cancelada.");
+      return;
+    }
+
     if (status === "cancelled") { setCancelId(id); setCancelReason(""); return; }
     try {
       await updateAppointment(id, { status });
