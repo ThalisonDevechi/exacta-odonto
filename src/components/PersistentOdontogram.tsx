@@ -22,17 +22,19 @@ interface Props {
   patientId: string;
   patientName: string;
   birthDate: string;
-  isPatientActive: boolean; // NOVO
+  isPatientActive: boolean;
 }
 
-function ToothBox({ number, tooth, onClick, readOnly }: { number: number; tooth?: DBTooth; onClick: () => void; readOnly: boolean }) {
+// ATUALIZADO: Removida a trava readOnly do botão, permitindo sempre o clique para visualização
+function ToothBox({ number, tooth, onClick }: { number: number; tooth?: DBTooth; onClick: () => void }) {
   const status: ToothStatus = (tooth?.status as ToothStatus) ?? "integro";
   const color = TOOTH_STATUS_COLORS[status];
   const isAbsent = status === "ausente" || status === "extraido";
+  
   return (
     <button
-      onClick={readOnly ? undefined : onClick}
-      className={`flex flex-col items-center gap-0.5 p-0.5 rounded transition ${readOnly ? "cursor-default" : "cursor-pointer hover:bg-muted"}`}
+      onClick={onClick}
+      className="flex flex-col items-center gap-0.5 p-0.5 rounded transition cursor-pointer hover:bg-muted"
       title={`Dente ${number}: ${TOOTH_STATUS_LABELS[status]}`}
     >
       <svg width="26" height="32" viewBox="0 0 26 32" className={isAbsent ? "opacity-40" : ""}>
@@ -53,7 +55,6 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
   const { user } = useAuth();
   const { data, loading, ensureOdontogram, changeDentitionType, upsertTooth, upsertFace } = useOdontogram(patientId, birthDate);
 
-  // ATUALIZADO: O paciente deve estar ativo para editar o odontograma ou adicionar observações
   const canEdit = user && (user.role === "admin" || user.role === "dentist") && isPatientActive;
   const canAddNotes = user && (user.role === "admin" || user.role === "dentist" || user.role === "assistant") && isPatientActive;
 
@@ -129,7 +130,7 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
         if (!ok) { setSaving(false); return; }
       }
       await upsertTooth(selectedNumber, { status: editStatus, observation: editObs || null }, user?.id);
-      // Look up the persisted tooth id directly to ensure faces target the correct row
+      
       const { supabase } = await import("@/integrations/supabase/client");
       const { data: freshTooth } = await supabase
         .from("odontogram_teeth")
@@ -169,7 +170,7 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
 
   const renderRow = (nums: number[]) => (
     <div className="flex gap-0.5">
-      {nums.map(n => <ToothBox key={n} number={n} tooth={toothByNumber(n)} onClick={() => openTooth(n)} readOnly={!canEdit} />)}
+      {nums.map(n => <ToothBox key={n} number={n} tooth={toothByNumber(n)} onClick={() => openTooth(n)} />)}
     </div>
   );
 
@@ -289,34 +290,6 @@ export function PersistentOdontogram({ patientId, patientName, birthDate, isPati
                   {saving && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />} Salvar
                 </Button>
               )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={dentitionDialog} onOpenChange={setDentitionDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Alterar tipo de dentição</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">Sugestão por idade: <strong>{DENTITION_LABELS[suggested]}</strong></p>
-            <div className="space-y-1.5">
-              <Label>Novo tipo</Label>
-              <Select value={newDentition} onValueChange={v => setNewDentition(v as DentitionType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(DENTITION_LABELS) as [DentitionType, string][]).map(([k, l]) => (
-                    <SelectItem key={k} value={k}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Justificativa <span className="text-destructive">*</span></Label>
-              <Textarea rows={3} value={dentitionReason} onChange={e => setDentitionReason(e.target.value)} placeholder="Ex: troca dentária em andamento, caso clínico atípico..." />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDentitionDialog(false)}>Cancelar</Button>
-              <Button onClick={handleChangeDentition}>Confirmar</Button>
             </div>
           </div>
         </DialogContent>
