@@ -25,7 +25,8 @@ export function useWhatsAppMessages(patientId: string | null) {
     // 1. Busca o histórico de mensagens
     const fetchMessages = async () => {
       setLoading(true);
-      const { data } = await supabase
+      // CORREÇÃO: (supabase as any) para o Vercel não chiar da tabela nova
+      const { data } = await (supabase as any)
         .from("whatsapp_messages")
         .select("*")
         .eq("patient_id", patientId)
@@ -57,13 +58,14 @@ export function useWhatsAppMessages(patientId: string | null) {
   // 3. Função para salvar nossa mensagem enviada com dados de quem enviou
   const sendMessage = async (content: string, senderId?: string, senderName?: string) => {
     if (!patientId) return;
-    const { error } = await supabase.from("whatsapp_messages").insert({
+    // CORREÇÃO: (supabase as any) aqui também
+    const { error } = await (supabase as any).from("whatsapp_messages").insert({
       patient_id: patientId,
       direction: "outbound",
       content,
       sender_id: senderId,
       sender_name: senderName,
-      sender_type: "user" // Sempre 'user' quando for enviado pelo painel React
+      sender_type: "user" 
     });
     if (error) throw error;
   };
