@@ -17,9 +17,15 @@ import { toast } from "sonner";
 
 const fmtMoney = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v ?? 0);
 
-export function TreatmentPlansTab({ patientId }: { patientId: string }) {
+interface Props {
+  patientId: string;
+  isPatientActive: boolean; // NOVO
+}
+
+export function TreatmentPlansTab({ patientId, isPatientActive }: Props) {
   const { user } = useAuth();
-  const canEdit = user ? canManageTreatmentPlans(user.role) : false;
+  // ATUALIZADO
+  const canEdit = user ? (canManageTreatmentPlans(user.role) && isPatientActive) : false;
   const { plans, steps, loading, addPlan, changeStatus, addStep, completeStep, cancelStep } = useTreatmentPlans(patientId);
   const { dentists } = useDentists();
 
