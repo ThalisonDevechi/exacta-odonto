@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Trash2, ImageOff, QrCode, PowerOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 
 const empty = {
   clinic_name: "", trade_name: "", cnpj: "", phone: "", whatsapp: "", email: "",
@@ -126,6 +126,11 @@ function WhatsAppBotTab() {
 
 export default function ClinicSettingsPage() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "general";
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value }, { replace: true });
+  };
   const isAdmin = user?.role === "admin";
   const canView = isAdmin || user?.role === "dentist" || user?.role === "receptionist" || user?.role === "assistant";
   const { settings, loading, save, uploadLogo, removeLogo } = useClinicSettings();
@@ -237,7 +242,7 @@ export default function ClinicSettingsPage() {
       {loading ? (
         <Skeleton className="h-96 w-full" />
       ) : (
-        <Tabs defaultValue="general" className="space-y-4">
+         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="general">Dados Gerais</TabsTrigger>
             <TabsTrigger value="bot">Bot WhatsApp</TabsTrigger>
