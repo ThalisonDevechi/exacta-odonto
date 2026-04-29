@@ -35,16 +35,18 @@ interface Props {
   patientId: string;
   patientName: string;
   patientPhone: string | null | undefined;
+  isPatientActive: boolean; // NOVO
 }
 
-export function PatientBudgetsTab({ patientId, patientName, patientPhone }: Props) {
+export function PatientBudgetsTab({ patientId, patientName, patientPhone, isPatientActive }: Props) {
   const { user } = useAuth();
   const { budgets, loading, issue, accept, reject, cancel } = useBudgets(patientId);
   const { settings } = useClinicSettings();
 
   const isAdmin = user?.role === "admin";
   const isDentist = user?.role === "dentist";
-  const canManage = isAdmin || isDentist;
+  // ATUALIZADO: Cruza permissões do user com a ativação do paciente
+  const canManage = (isAdmin || isDentist) && isPatientActive;
   const canWhatsApp = user ? canSendWhatsApp(user.role) : false;
 
   const [viewing, setViewing] = useState<BudgetWithItems | null>(null);
@@ -204,12 +206,13 @@ export function PatientBudgetsTab({ patientId, patientName, patientPhone }: Prop
                 <span className="text-base">Total: <strong>{fmt(Number(viewing.total_value))}</strong></span>
               </div>
               <div className="pt-3 border-t border-border">
+                {/* Nota: se quiser bloquear assinaturas em inativos, isPatientActive também pode ser passado aqui ou usado no canCollect */}
                 <DocumentSignatureSection
                   documentType="budget"
                   documentId={viewing.id}
                   documentTitle={`Orçamento ${viewing.budget_number ?? ""}`.trim()}
                   patientId={patientId}
-                  canCollect={viewing.status === "emitido" || viewing.status === "aceito"}
+                  canCollect={(viewing.status === "emitido" || viewing.status === "aceito") && isPatientActive}
                   defaultSignerName={patientName}
                   defaultSignerDocument={viewing.patients?.cpf ?? undefined}
                 />
