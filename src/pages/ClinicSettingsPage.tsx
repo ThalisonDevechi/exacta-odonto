@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Trash2, ImageOff, QrCode, PowerOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Navigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; // Se já não estiver importado
 
 const empty = {
   clinic_name: "", trade_name: "", cnpj: "", phone: "", whatsapp: "", email: "",
@@ -30,6 +31,31 @@ function WhatsAppBotTab() {
   const API_URL = "https://pierce-clinic-combat-finance.trycloudflare.com";
   const API_KEY = "exacta123";
   const INSTANCE_NAME = "exacta_bot";
+
+  const navigate = useNavigate();
+
+  // Olheiro: Fica checando a cada 3 segundos se o celular conectou
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (qrCode) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_URL}/instance/connectionState/${INSTANCE_NAME}`, {
+            headers: { apikey: API_KEY }
+          });
+          const data = await res.json();
+          if (data?.instance?.state === "open") {
+            clearInterval(interval);
+            toast.success("WhatsApp Conectado com sucesso!");
+            navigate("/whatsapp"); // Pula pra tela do chat!
+          }
+        } catch (error) {
+          // Ignora erros de rede temporários
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [qrCode, navigate]);
 
   const generateQRCode = async () => {
     setLoading(true);
