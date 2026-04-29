@@ -25,7 +25,6 @@ export function useWhatsAppMessages(patientId: string | null) {
     // 1. Busca o histórico de mensagens
     const fetchMessages = async () => {
       setLoading(true);
-      // CORREÇÃO: (supabase as any) para o Vercel não chiar da tabela nova
       const { data } = await (supabase as any)
         .from("whatsapp_messages")
         .select("*")
@@ -39,12 +38,14 @@ export function useWhatsAppMessages(patientId: string | null) {
     fetchMessages();
 
     // 2. Fica "escutando" o banco em tempo real
-    const channel = supabase
+    // CORREÇÃO: (supabase as any) adicionado aqui para o Vercel não travar com a tabela nova
+    const channel = (supabase as any)
       .channel(`messages-${patientId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `patient_id=eq.${patientId}` },
-        (payload) => {
+        // CORREÇÃO: O (payload: any) é obrigatório aqui para evitar o erro de "implicit any" do TypeScript
+        (payload: any) => {
           setMessages((prev) => [...prev, payload.new as WhatsAppMessage]);
         }
       )
@@ -58,7 +59,6 @@ export function useWhatsAppMessages(patientId: string | null) {
   // 3. Função para salvar nossa mensagem enviada com dados de quem enviou
   const sendMessage = async (content: string, senderId?: string, senderName?: string) => {
     if (!patientId) return;
-    // CORREÇÃO: (supabase as any) aqui também
     const { error } = await (supabase as any).from("whatsapp_messages").insert({
       patient_id: patientId,
       direction: "outbound",
