@@ -36,7 +36,7 @@ export default function WhatsAppChatPage() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const API_URL = "https://pierce-clinic-combat-finance.trycloudflare.com"; 
+        const API_URL = "https://enough-willing-thesaurus-reid.trycloudflare.com";
         const res = await fetch(`${API_URL}/instance/connectionState/exacta_bot`, {
           headers: { apikey: "exacta123" }
         });
