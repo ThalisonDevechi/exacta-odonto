@@ -59,6 +59,33 @@ const STATUS_COLORS: Record<string, string> = {
   rescheduled: "bg-orange-100 border-orange-300 text-orange-800 hover:bg-orange-200",
 };
 
+const STATUS_LEGEND: Array<{ status: AppointmentStatus; label: string; dotClass: string }> = [
+  { status: "scheduled", label: "Agendada", dotClass: "bg-blue-500" },
+  { status: "confirmed", label: "Confirmada", dotClass: "bg-purple-500" },
+  { status: "in_progress", label: "Em atendimento", dotClass: "bg-yellow-500" },
+  { status: "completed", label: "Concluída", dotClass: "bg-green-500" },
+  { status: "cancelled", label: "Cancelada", dotClass: "bg-red-500" },
+  { status: "missed", label: "Faltou", dotClass: "bg-gray-500" },
+  { status: "rescheduled", label: "Remarcada", dotClass: "bg-orange-500" },
+];
+
+const getAppointmentDurationMinutes = (start: string, end: string) => {
+  const [sh, sm] = start.slice(0, 5).split(":").map(Number);
+  const [eh, em] = end.slice(0, 5).split(":").map(Number);
+  return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+};
+
+const getTimeRange = (start: string, end: string) => `${start.slice(0, 5)}–${end.slice(0, 5)}`;
+
+const getShortName = (name?: string | null) => {
+  if (!name) return "—";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return parts[0] ?? name;
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+};
+
+const getFirstName = (name?: string | null) => name?.trim().split(/\s+/)[0] ?? "—";
+
 export default function AgendaPage() {
   const { user } = useAuth();
   const { appointments, loading, addAppointment, updateAppointment, deleteAppointment, checkConflict } = useAppointments();
@@ -441,25 +468,92 @@ export default function AgendaPage() {
                       {/* Renderização das Consultas */}
                       {filteredAppointments
                         .filter(a => a.date === dateStr)
-                        .map(apt => (
-                          <div
-                            key={apt.id}
-                            onClick={(e) => { e.stopPropagation(); setDetailsTarget(apt); }}
-                            className={`absolute left-0.5 right-0.5 rounded-md border p-1.5 overflow-hidden cursor-pointer shadow-sm transition-all hover:scale-[1.02] z-10 flex flex-col gap-0.5 ${STATUS_COLORS[apt.status] || "bg-muted text-foreground"}`}
-                            style={getStyleForAppointment(apt.start_time, apt.end_time)}
-                            title={`${apt.start_time.slice(0,5)} - ${apt.patients?.name}`}
-                          >
-                            <div className="flex justify-between items-start w-full">
-                              <span className="text-[10px] font-bold opacity-80">{apt.start_time.slice(0,5)}</span>
-                              {apt.confirmation_status === "confirmada" && <CheckCircle2 className="h-3 w-3 opacity-70" />}
+                        .map(apt => {
+                          const durationMinutes = getAppointmentDurationMinutes(apt.start_time, apt.end_time);
+                          const isShortAppointment = durationMinutes <= 30;
+                          const canShowProcedure = durationMinutes >= 45;
+                          const canShowDentist = durationMinutes >= 60;
+                          const timeRange = getTimeRange(apt.start_time, apt.end_time);
+                          const patientName = apt.patients?.name ?? "Paciente não informado";
+                          const dentistName = apt.dentists?.name ?? "Dentista não informado";
+                          const statusLabel = APPOINTMENT_STATUS_LABELS[apt.status] ?? "Status";
+                          const confirmationLabel = apt.confirmation_status
+                            ? CONFIRMATION_STATUS_LABELS[apt.confirmation_status as ConfirmationStatus]
+                            : "Confirmação pendente";
+
+                          return (
+                            <div
+                              key={apt.id}
+                              onClick={(e) => { e.stopPropagation(); setDetailsTarget(apt); }}
+                              className={`absolute left-0.5 right-0.5 rounded-md border px-1.5 py-1 overflow-hidden cursor-pointer shadow-sm transition-all hover:scale-[1.02] hover:shadow-md z-10 flex flex-col ${isShortAppointment ? "gap-0" : "gap-0.5"} ${STATUS_COLORS[apt.status] || "bg-muted text-foreground"}`}
+                              style={getStyleForAppointment(apt.start_time, apt.end_time)}
+                              title={`${timeRange} · ${patientName} · ${apt.appointment_type || "Consulta"} · ${dentistName} · ${statusLabel}`}
+                              aria-label={`Agendamento de ${patientName}, ${timeRange}, ${apt.appointment_type || "consulta"}, ${dentistName}, status ${statusLabel}`}
+                            >
+                              <div className="flex items-center justify-between gap-1 min-w-0">
+                                <span className="text-[10px] font-bold leading-none tracking-tight tabular-nums shrink-0">
+                                  {timeRange}
+                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {apt.confirmation_status === "confirmada" && (
+                                    <CheckCircle2 className="h-3 w-3 opacity-80" aria-label="Consulta confirmada" />
+                                  )}
+                                  {apt.confirmation_status && apt.confirmation_status !== "pendente" && apt.confirmation_status !== "confirmada" && (
+                                    <span className="rounded-full bg-background/60 px-1 text-[9px] font-bold leading-3" title={confirmationLabel}>
+                                      ?
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span className={`${isShortAppointment ? "text-[11px]" : "text-xs"} font-semibold leading-tight truncate`}>
+                                {getShortName(patientName)}
+                              </span>
+
+                              {canShowProcedure && (
+                                <span className="text-[10px] leading-tight truncate opacity-90">
+                                  {apt.appointment_type || "Consulta"}
+                                </span>
+                              )}
+
+                              {canShowDentist && (
+                                <span className="text-[10px] leading-tight truncate opacity-80">
+                                  Dr(a). {getFirstName(dentistName)}
+                                </span>
+                              )}
                             </div>
-                            <span className="text-xs font-semibold leading-tight truncate">{apt.patients?.name}</span>
-                            <span className="text-[10px] leading-tight truncate opacity-90">{apt.dentists?.name?.split(' ')[0]}</span>
-                          </div>
-                      ))}
+                          );
+                        })}
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            <div className="border-t border-border bg-background/70 px-3 py-2">
+              <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>Legenda</span>
+                  <span className="hidden sm:inline text-muted-foreground/50">·</span>
+                  <span className="hidden sm:inline normal-case font-normal tracking-normal">cores por status do agendamento</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  {STATUS_LEGEND.map(item => (
+                    <span key={item.status} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                      <span className={`h-2.5 w-2.5 rounded-full ${item.dotClass}`} />
+                      {item.label}
+                    </span>
+                  ))}
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <CheckCircle2 className="h-3 w-3 text-primary" />
+                    confirmado pelo paciente
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="font-bold tabular-nums text-foreground">08:00–08:30</span>
+                    início–fim
+                  </span>
+                </div>
               </div>
             </div>
           </div>
