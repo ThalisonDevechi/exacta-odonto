@@ -28,7 +28,7 @@ function WhatsAppBotTab() {
   const [loading, setLoading] = useState(false);
 
   // Configurações do Docker da Evolution API rodando na sua máquina
-  const API_URL = "https://pierce-clinic-combat-finance.trycloudflare.com";
+  const API_URL = import.meta.env.VITE_EVOLUTION_API_URL;
   const API_KEY = "exacta123";
   const INSTANCE_NAME = "exacta_bot";
 
